@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reembolsos LIPU · Taxis y Uber</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+  :root{
+    --ink:#0B1220;
+    --slate:#12203A;
+    --paper:#F3F5F8;
+    --card:#FFFFFF;
+    --line:#E2E6ED;
+    --muted:#64748B;
+    --text:#1B2430;
+    --amber:#F59E0B;
+    --amber-bg:#FEF3E2;
+    --indigo:#6366F1;
+    --indigo-bg:#EEEEFE;
+    --teal:#0E9F8E;
+    --teal-bg:#E3F7F4;
+    --red:#DC4C4C;
+    --red-bg:#FDEDED;
+    --radius:12px;
+    --shadow:0 1px 2px rgba(11,18,32,0.04), 0 8px 24px -12px rgba(11,18,32,0.12);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--text);
+    font-family:'Inter',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  .display{font-family:'Space Grotesk',system-ui,sans-serif;}
+
+  /* ---------- Header ---------- */
+  header.top{
+    background:linear-gradient(180deg,var(--ink),var(--slate));
+    color:#fff;
+    padding:28px clamp(16px,4vw,40px) 22px;
+  }
+  .top-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    flex-wrap:wrap;
+    gap:16px;
+    max-width:1280px;
+    margin:0 auto;
+  }
+  .brand{display:flex;align-items:center;gap:14px;}
+  .brand-badge{
+    width:44px;height:44px;border-radius:10px;
+    background:var(--amber);
+    display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;
+  }
+  .brand-badge svg{width:24px;height:24px;}
+  .brand h1{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:20px;
+    font-weight:700;
+    margin:0;
+    letter-spacing:0.2px;
+  }
+  .brand p{margin:2px 0 0;font-size:13px;color:#AAB4C8;}
+  .sync-pill{
+    display:flex;align-items:center;gap:8px;
+    background:rgba(255,255,255,0.08);
+    border:1px solid rgba(255,255,255,0.12);
+    border-radius:999px;
+    padding:7px 14px;
+    font-size:12.5px;
+    color:#CBD5E1;
+  }
+  .sync-dot{width:7px;height:7px;border-radius:50%;background:var(--teal);flex-shrink:0;}
+  .sync-dot.loading{background:var(--amber);animation:pulse 1s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.35;}}
+  .sync-pill button{
+    background:none;border:none;color:#fff;cursor:pointer;
+    font-size:12.5px;font-family:inherit;text-decoration:underline;
+    padding:0;margin-left:2px;
+  }
+
+  /* route-line divider */
+  .route-line{
+    max-width:1280px;margin:20px auto 0;
+    height:2px;
+    background-image:repeating-linear-gradient(90deg,var(--amber) 0 14px, transparent 14px 24px);
+    position:relative;
+    opacity:0.9;
+  }
+
+  main{max-width:1280px;margin:0 auto;padding:24px clamp(16px,4vw,40px) 60px;}
+
+  /* ---------- Dashboard cards ---------- */
+  .cards{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+    gap:14px;
+    margin-bottom:28px;
+  }
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:16px 18px;
+    box-shadow:var(--shadow);
+  }
+  .card .label{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.4px;}
+  .card .value{font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:700;margin-top:6px;color:var(--ink);}
+  .card .sub{font-size:12px;color:var(--muted);margin-top:4px;}
+  .status-chip-row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+  .status-chip{
+    font-size:11px;font-weight:600;padding:4px 9px;border-radius:999px;
+    display:inline-flex;align-items:center;gap:5px;
+  }
+  .status-chip .dot{width:6px;height:6px;border-radius:50%;}
+
+  .breakdown-card{grid-column:span 2;}
+  .bar-row{display:flex;align-items:center;gap:10px;margin-top:9px;font-size:12.5px;}
+  .bar-row .bar-label{width:150px;flex-shrink:0;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .bar-track{flex:1;height:8px;background:#EEF1F6;border-radius:5px;overflow:hidden;}
+  .bar-fill{height:100%;border-radius:5px;background:var(--amber);}
+  .bar-count{width:22px;text-align:right;color:var(--muted);font-family:'IBM Plex Mono',monospace;}
+
+  @media (max-width:720px){ .breakdown-card{grid-column:span 1;} }
+
+  /* ---------- Layout: form + table ---------- */
+  .workspace{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:20px;
+    align-items:start;
+  }
+
+  .panel{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    overflow:hidden;
+  }
+  .panel-head{
+    padding:16px 20px;
+    border-bottom:1px solid var(--line);
+    display:flex;align-items:center;justify-content:space-between;
+    gap:10px;
+  }
+  .panel-head h2{font-family:'Space Grotesk',sans-serif;font-size:15.5px;margin:0;font-weight:700;}
+  .panel-head .badge{
+    font-size:11px;font-weight:600;color:var(--amber);background:var(--amber-bg);
+    padding:3px 9px;border-radius:999px;
+  }
+
+  .form-body{padding:18px 20px 20px;}
+  #recordForm{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(200px, 1fr));
+    gap:14px 16px;
+    align-items:start;
+  }
+  .field{margin-bottom:0;}
+  .field.field-span{grid-column:1 / -1;}
+  .field.editing-banner{grid-column:1 / -1;}
+  .field label{
+    display:block;font-size:12.5px;font-weight:600;color:var(--text);margin-bottom:5px;
+  }
+  .field label .opt{color:var(--muted);font-weight:400;}
+  .field label .req{color:var(--red);}
+  .field input, .field select, .field textarea{
+    width:100%;
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:9px 11px;
+    font-size:13.5px;
+    font-family:'Inter',sans-serif;
+    color:var(--text);
+    background:#FBFCFD;
+    transition:border-color .15s, box-shadow .15s;
+  }
+  .field textarea{resize:vertical;min-height:56px;}
+  .field input:focus, .field select:focus, .field textarea:focus{
+    outline:none;border-color:var(--amber);box-shadow:0 0 0 3px var(--amber-bg);background:#fff;
+  }
+  .amount-wrap{position:relative;}
+  .amount-wrap span{position:absolute;left:11px;top:9px;color:var(--muted);font-size:13.5px;}
+  .amount-wrap input{padding-left:24px;}
+
+  .form-actions{display:flex;gap:10px;margin-top:2px;grid-column:1 / -1;}
+  .helper-note{grid-column:1 / -1;}
+  .btn{
+    border:none;border-radius:8px;padding:10px 16px;font-size:13.5px;font-weight:600;
+    cursor:pointer;font-family:'Inter',sans-serif;display:inline-flex;align-items:center;gap:7px;
+    transition:transform .06s, opacity .15s, background .15s;
+  }
+  .btn:active{transform:scale(0.98);}
+  .btn:disabled{opacity:0.55;cursor:not-allowed;}
+  .btn-primary{background:var(--ink);color:#fff;flex:1;justify-content:center;}
+  .btn-primary:hover:not(:disabled){background:#1c2a45;}
+  .btn-ghost{background:#EEF1F6;color:var(--text);}
+  .btn-ghost:hover{background:#E4E8EF;}
+  .btn-export{background:var(--teal);color:#fff;}
+  .btn-export:hover:not(:disabled){background:#0c8a7b;}
+  .btn-danger-text{background:none;color:var(--red);text-decoration:underline;padding:4px 0;font-weight:500;}
+
+  .helper-note{font-size:11.5px;color:var(--muted);margin-top:10px;line-height:1.5;}
+
+  /* ---------- Table panel ---------- */
+  .table-controls{
+    display:flex;gap:10px;flex-wrap:wrap;padding:14px 20px;border-bottom:1px solid var(--line);
+    align-items:center;
+  }
+  .table-controls input[type=text]{
+    flex:1;min-width:150px;border:1px solid var(--line);border-radius:8px;padding:8px 12px;
+    font-size:13px;font-family:inherit;background:#FBFCFD;
+  }
+  .table-controls select{
+    border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;background:#FBFCFD;
+  }
+  .table-wrap{max-height:560px;overflow:auto;}
+  table{border-collapse:collapse;width:100%;min-width:1400px;font-size:12.8px;}
+  thead th{
+    position:sticky;top:0;background:#F7F9FB;color:var(--muted);
+    text-transform:uppercase;font-size:10.5px;letter-spacing:0.4px;font-weight:700;
+    padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap;z-index:1;
+  }
+  tbody td{padding:10px 12px;border-bottom:1px solid #EEF1F5;white-space:nowrap;color:var(--text);}
+  tbody tr:hover{background:#FAFBFD;}
+  td.comments-cell{white-space:normal;max-width:220px;color:var(--muted);}
+  td.amount-cell{font-family:'IBM Plex Mono',monospace;font-weight:600;}
+  .row-actions{display:flex;gap:6px;}
+  .icon-btn{
+    border:none;background:#EEF1F6;color:var(--text);border-radius:6px;width:26px;height:26px;
+    cursor:pointer;display:inline-flex;align-items:center;justify-content:center;
+  }
+  .icon-btn:hover{background:#E2E6ED;}
+  .icon-btn.danger:hover{background:var(--red-bg);color:var(--red);}
+
+  .status-action-btn{
+    border:none;border-radius:6px;padding:0 10px;height:26px;
+    font-size:11.5px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;
+    white-space:nowrap;
+  }
+  .status-action-btn.admin{background:var(--indigo-bg);color:#4338CA;}
+  .status-action-btn.admin:hover{background:#DEDEFC;}
+  .status-action-btn.pagado{background:var(--teal-bg);color:#0B6E62;}
+  .status-action-btn.pagado:hover{background:#CFF0EB;}
+
+  .status-tag{
+    font-size:11px;font-weight:600;padding:4px 9px;border-radius:999px;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;
+  }
+  .status-tag .dot{width:6px;height:6px;border-radius:50%;}
+
+  .empty-state{padding:60px 20px;text-align:center;color:var(--muted);}
+  .empty-state svg{width:38px;height:38px;margin-bottom:10px;opacity:0.5;}
+  .empty-state p{margin:4px 0 0;font-size:13px;}
+
+  .footer-bar{
+    display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;
+    padding:14px 20px;border-top:1px solid var(--line);background:#FBFCFD;
+  }
+  .footer-bar .count{font-size:12.5px;color:var(--muted);}
+
+  /* Toast */
+  #toast{
+    position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);
+    background:var(--ink);color:#fff;padding:11px 18px;border-radius:9px;font-size:13px;
+    box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:all .25s;z-index:100;
+    display:flex;align-items:center;gap:8px;
+  }
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  #toast.error{background:var(--red);}
+
+  /* Modal */
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(11,18,32,0.5);display:none;
+    align-items:center;justify-content:center;z-index:200;padding:20px;
+  }
+  .modal-overlay.show{display:flex;}
+  .modal{background:#fff;border-radius:var(--radius);padding:22px;max-width:360px;box-shadow:var(--shadow);}
+  .modal h3{margin:0 0 8px;font-family:'Space Grotesk',sans-serif;font-size:16px;}
+  .modal p{margin:0 0 18px;font-size:13.5px;color:var(--muted);line-height:1.5;}
+  .modal-actions{display:flex;gap:10px;justify-content:flex-end;}
+
+  .field.editing-banner{
+    background:var(--amber-bg);border:1px solid var(--amber);border-radius:8px;
+    padding:9px 12px;font-size:12.5px;color:#92660A;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;
+  }
+  .field.editing-banner button{background:none;border:none;color:#92660A;text-decoration:underline;cursor:pointer;font-size:12px;font-family:inherit;}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-row">
+    <div class="brand">
+      <div class="brand-badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#0B1220" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M3 12a2 2 0 0 1 2-2h1l2-5h8l2 5h1a2 2 0 0 1 2 2v5a1 1 0 0 1-1 1h-1a2 2 0 1 1-4 0H8a2 2 0 1 1-4 0H3a1 1 0 0 1-1-1v-4z"/></svg>
+      </div>
+      <div>
+        <h1>Reembolsos LIPU · Taxis y Uber</h1>
+        <p>Captura de incidencias de transporte — se acumula entre todo el personal</p>
+      </div>
+    </div>
+    <div class="sync-pill">
+      <span class="sync-dot" id="syncDot"></span>
+      <span id="syncText">Sincronizado</span>
+      <button id="refreshBtn" type="button">Actualizar</button>
+    </div>
+  </div>
+  <div class="route-line"></div>
+</header>
+
+<div id="configWarningBanner" style="display:none;background:#FDEDED;border-bottom:1px solid #F3C9C9;color:#8A2C2C;padding:10px clamp(16px,4vw,40px);font-size:13px;text-align:center;">
+  ⚠️ Falta configurar Firebase: abre el archivo HTML, busca <code style="background:#fff;padding:1px 5px;border-radius:4px;">firebaseConfig</code> cerca del inicio del <code style="background:#fff;padding:1px 5px;border-radius:4px;">&lt;script&gt;</code> y pega ahí los datos de tu proyecto.
+</div>
+
+<main>
+
+  <section class="cards" id="cards"><!-- filled by JS --></section>
+
+  <section class="workspace">
+    <!-- FORM -->
+    <div class="panel">
+      <div class="panel-head">
+        <h2 id="formTitle">Nueva incidencia</h2>
+        <span class="badge">Paso 1</span>
+      </div>
+      <div class="form-body">
+        <div class="field editing-banner" id="editingBanner" style="display:none;">
+          Editando un registro existente
+          <button type="button" id="cancelEditBtn">Cancelar</button>
+        </div>
+
+        <form id="recordForm">
+          <div class="field">
+            <label>Planta <span class="req">*</span></label>
+            <select id="f_planta" required>
+              <option value="">Selecciona…</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>RP <span class="req">*</span></label>
+            <select id="f_rp" required>
+              <option value="">Selecciona…</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Inplant <span class="opt">(opcional)</span></label>
+            <input type="text" id="f_inplant" placeholder="Ej. IN-014">
+          </div>
+
+          <div class="field">
+            <label>Jefe de operaciones <span class="opt">(opcional)</span></label>
+            <select id="f_jefe">
+              <option value="">Selecciona…</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Coordinador <span class="opt">(opcional)</span></label>
+            <input type="text" id="f_coordinador" placeholder="Nombre del coordinador">
+          </div>
+
+          <div class="field">
+            <label>Fecha de la incidencia <span class="req">*</span></label>
+            <input type="date" id="f_fechaIncidencia" required>
+          </div>
+
+          <div class="field">
+            <label>Tipo de falla <span class="req">*</span></label>
+            <select id="f_tipoFalla" required>
+              <option value="">Selecciona…</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Ruta <span class="req">*</span></label>
+            <input type="text" id="f_ruta" placeholder="Ej. R-12" required>
+          </div>
+
+          <div class="field">
+            <label>Parada <span class="req">*</span></label>
+            <input type="text" id="f_parada" placeholder="Ej. Parada 4" required>
+          </div>
+
+          <div class="field">
+            <label>Turno <span class="req">*</span></label>
+            <input type="text" id="f_turno" placeholder="Ej. Matutino" required>
+          </div>
+
+          <div class="field">
+            <label>Uber / Taxi <span class="req">*</span></label>
+            <select id="f_uberTaxi" required>
+              <option value="">Selecciona…</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Monto <span class="req">*</span></label>
+            <div class="amount-wrap">
+              <span>$</span>
+              <input type="number" id="f_monto" step="0.01" min="0" placeholder="0.00" required>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Unidad <span class="opt">(opcional)</span></label>
+            <input type="text" id="f_unidad" placeholder="Ej. U-08">
+          </div>
+
+          <div class="field">
+            <label>Operador <span class="opt">(opcional)</span></label>
+            <input type="text" id="f_operador" placeholder="Nombre del operador">
+          </div>
+
+          <div class="field">
+            <label>Estatus <span class="req">*</span></label>
+            <select id="f_estatus" required>
+              <option value="">Selecciona…</option>
+            </select>
+          </div>
+
+          <div class="field field-span">
+            <label>Comentarios <span class="opt">(opcional)</span></label>
+            <textarea id="f_comentarios" placeholder="Detalles adicionales…"></textarea>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary" id="submitBtn">Guardar registro</button>
+            <button type="button" class="btn btn-ghost" id="clearFormBtn">Limpiar</button>
+          </div>
+          <p class="helper-note">Los registros se guardan en un espacio compartido: todo el personal que abra este panel verá y sumará a la misma lista.</p>
+        </form>
+      </div>
+    </div>
+
+    <!-- TABLE -->
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Incidencias registradas</h2>
+        <span class="badge" id="tableBadge">0</span>
+      </div>
+      <div class="table-controls">
+        <input type="text" id="searchInput" placeholder="Buscar por planta, RP, operador, ruta, comentarios…">
+        <select id="filterEstatus">
+          <option value="">Todos los estatus</option>
+        </select>
+        <select id="filterTipoFalla">
+          <option value="">Todos los tipos de falla</option>
+        </select>
+        <button class="btn btn-export" id="exportBtn" type="button">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Descargar Excel
+        </button>
+      </div>
+      <div class="table-wrap">
+        <table id="dataTable">
+          <thead>
+            <tr id="tableHeadRow"></tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+        <div class="empty-state" id="emptyState" style="display:none;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 12h18M3 12a2 2 0 0 1 2-2h1l2-5h8l2 5h1a2 2 0 0 1 2 2v5a1 1 0 0 1-1 1h-1a2 2 0 1 1-4 0H8a2 2 0 1 1-4 0H3a1 1 0 0 1-1-1v-4z"/></svg>
+          <p><strong>Aún no hay incidencias registradas.</strong><br>Usa el formulario para capturar la primera.</p>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <span class="count" id="footerCount">0 registros</span>
+        <button class="btn-danger-text" id="clearAllBtn" type="button">Borrar todos los registros</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="toast"></div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h3 id="modalTitle">¿Confirmar?</h3>
+    <p id="modalText"></p>
+    <div class="field" id="modalPasswordField" style="display:none;">
+      <label>Contraseña</label>
+      <input type="password" id="modalPasswordInput" placeholder="Ingresa la contraseña" autocomplete="off">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="modalCancelBtn">Cancelar</button>
+      <button class="btn" id="modalConfirmBtn" style="background:var(--red);color:#fff;">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="statusModalOverlay">
+  <div class="modal">
+    <h3 id="statusModalTitle">Actualizar estatus</h3>
+    <p id="statusModalText"></p>
+    <div class="field">
+      <label id="statusModalDateLabel">Fecha</label>
+      <input type="date" id="statusModalDate">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="statusModalCancelBtn">Cancelar</button>
+      <button class="btn btn-primary" id="statusModalConfirmBtn">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // =====================================================================
+  // CONFIGURACIÓN DE FIREBASE — reemplaza estos valores por los de tu
+  // propio proyecto (Firebase Console > Configuración del proyecto >
+  // Tus apps > ícono web </>). Es seguro que estos valores sean públicos.
+  // =====================================================================
+  const firebaseConfig = {
+    apiKey: "AIzaSyBUFQ93xHH2UbH3xyQLnGX4q5JjDpSzftk",
+    authDomain: "reembolsos-56fef.firebaseapp.com",
+    projectId: "reembolsos-56fef",
+    storageBucket: "reembolsos-56fef.firebasestorage.app",
+    messagingSenderId: "382099080146",
+    appId: "1:382099080146:web:17d7ecb6568da6e19b7e0b"
+  };
+  const COLLECTION_NAME = "reembolsos_lipu_records";
+
+  let db = null;
+  let firebaseReady = false;
+  try{
+    if(firebaseConfig.apiKey && firebaseConfig.apiKey !== "TU_API_KEY_AQUI"){
+      firebase.initializeApp(firebaseConfig);
+      db = firebase.firestore();
+      firebaseReady = true;
+    }
+  }catch(e){
+    firebaseReady = false;
+    console.error("Error al inicializar Firebase:", e);
+  }
+  // =====================================================================
+
+  // ---------- Reference lists (from the original REEMBOLSOS_LIPU template) ----------
+  const PLANTA_OPTIONS = ["ABB","AMAZON 1","AMAZON 2","AMAZON 3","AXIONLOG","BUENO ALIMENTOS","CELESTICA AGUA FRIA","CELESTICA APODACA","DAWNFOODS","FORNEY","FUNDACION TERNIUM","GLOBAL","HAMADEN","HUDSON","LEVARE","LIEBHERR","LISI","LIXIL","MOTA ENGIL","NIDEC - CMD","NIDEC - COLD","NIDEC - NLA","NIDEC - USEM","OWENS","PALACIO DE HIERRO","PANEL REY","PEAK","PLASMAN","PLASTIEXPORTS","PLATO EXPRESS","QUALTIA","SAINT GOBAIN","SCANPAINT","SIEMENS","TOPO CHICO","UDEM - CIRCUITOS","UDEM - DIRECTO","VEOLIA","VERTIV","VIAKEM","WOLONG"];
+  const RP_OPTIONS = ["Pedro Perez","Lizbeth Luna","Armando Nava"];
+  const SUPERVISOR_OPTIONS = ["Vacante","Obiel Mendez","Orlando Hernandez","Victor Limas"];
+  const TIPO_FALLA_OPTIONS = ["Omision de Parada","Falla Mecanica","Ruta Tirada","Operador Dormido","Falla de GPS","Ruta mal realizada"];
+  const UBER_TAXI_OPTIONS = ["TAXI","UBER"];
+  const ESTATUS_OPTIONS = ["Operaciones","Administracion","Pagado"];
+
+  const STATUS_COLOR = {
+    "Operaciones":   {fg:"#92660A", bg:"var(--amber-bg)", dot:"var(--amber)"},
+    "Administracion":{fg:"#4338CA", bg:"var(--indigo-bg)", dot:"var(--indigo)"},
+    "Pagado":        {fg:"#0B6E62", bg:"var(--teal-bg)", dot:"var(--teal)"}
+  };
+
+  const COLUMNS = [
+    {key:"planta", label:"Planta"},
+    {key:"rp", label:"RP"},
+    {key:"inplant", label:"Inplant"},
+    {key:"jefe", label:"Jefe de operaciones"},
+    {key:"coordinador", label:"Coordinador"},
+    {key:"fechaIncidencia", label:"Fecha de la incidencia", type:"date"},
+    {key:"tipoFalla", label:"Tipo de falla"},
+    {key:"ruta", label:"Ruta"},
+    {key:"parada", label:"Parada"},
+    {key:"turno", label:"Turno"},
+    {key:"uberTaxi", label:"Uber / Taxi"},
+    {key:"monto", label:"Monto", type:"amount"},
+    {key:"unidad", label:"Unidad"},
+    {key:"operador", label:"Operador"},
+    {key:"comentarios", label:"Comentarios", type:"comment"},
+    {key:"estatus", label:"Estatus", type:"status"},
+    {key:"fechaAdministracion", label:"Fecha pase a Administración", type:"date"},
+    {key:"fechaPago", label:"Fecha de pago", type:"date"},
+    {key:"capturadoEn", label:"Fecha de captura", type:"datetime"}
+  ];
+
+  const EXPORT_HEADERS = ["PLANTA","RP","INPLANT","JEFE DE OPERACIONES","COORDINADOR","FECHA DE LA INCIDENCIA","TIPO DE FALLA","RUTA","PARADA","TURNO","UBER / TAXI","MONTO","UNIDAD","OPERADOR","COMENTARIOS","ESTATUS","FECHA PASE A ADMINISTRACION","FECHA DE PAGO","FECHA DE CAPTURA"];
+
+  const CLEAR_ALL_PASSWORD = "LIPU2026";
+
+  let records = [];
+  let editingId = null;
+  let pendingDeleteId = null;
+  let pendingStatusChange = null;
+  let unsubscribeSnapshot = null;
+
+  // ---------- DOM refs ----------
+  const $ = (id) => document.getElementById(id);
+  const form = $("recordForm");
+  const cardsEl = $("cards");
+  const tableHeadRow = $("tableHeadRow");
+  const tableBody = $("tableBody");
+  const emptyState = $("emptyState");
+  const tableBadge = $("tableBadge");
+  const footerCount = $("footerCount");
+  const syncDot = $("syncDot");
+  const syncText = $("syncText");
+
+  // ---------- Populate selects ----------
+  function fillSelect(id, options, allowEmpty){
+    const el = $(id);
+    options.forEach(opt=>{
+      const o = document.createElement("option");
+      o.value = opt; o.textContent = opt;
+      el.appendChild(o);
+    });
+  }
+  fillSelect("f_planta", PLANTA_OPTIONS);
+  fillSelect("f_rp", RP_OPTIONS);
+  fillSelect("f_jefe", SUPERVISOR_OPTIONS);
+  fillSelect("f_tipoFalla", TIPO_FALLA_OPTIONS);
+  fillSelect("f_uberTaxi", UBER_TAXI_OPTIONS);
+  fillSelect("f_estatus", ESTATUS_OPTIONS);
+  fillSelect("filterEstatus", ESTATUS_OPTIONS);
+  fillSelect("filterTipoFalla", TIPO_FALLA_OPTIONS);
+
+  // build table header
+  COLUMNS.forEach(col=>{
+    const th = document.createElement("th");
+    th.textContent = col.label;
+    tableHeadRow.appendChild(th);
+  });
+  const thActions = document.createElement("th");
+  thActions.textContent = "";
+  tableHeadRow.appendChild(thActions);
+
+  // ---------- Toast ----------
+  let toastTimer;
+  function showToast(msg, type){
+    const t = $("toast");
+    t.textContent = msg;
+    t.className = "show" + (type==="error" ? " error" : "");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>{ t.className = ""; }, 3200);
+  }
+
+  function setSyncState(state){
+    // state: "synced" | "loading" | "error"
+    syncDot.className = "sync-dot" + (state==="loading" ? " loading" : "");
+    if(state==="synced") syncText.textContent = "Sincronizado";
+    else if(state==="loading") syncText.textContent = "Sincronizando…";
+    else syncText.textContent = "Sin conexión";
+  }
+
+  // ---------- Firestore sync ----------
+  function startRealtimeSync(){
+    if(!firebaseReady){
+      setSyncState("error");
+      showToast("Firebase no está configurado todavía. Revisa firebaseConfig en el código.", "error");
+      renderAll();
+      return;
+    }
+    setSyncState("loading");
+    unsubscribeSnapshot = db.collection(COLLECTION_NAME).onSnapshot(
+      (snapshot)=>{
+        records = snapshot.docs.map(d=> Object.assign({}, d.data(), {id: d.id}));
+        setSyncState("synced");
+        renderAll();
+      },
+      (err)=>{
+        console.error("Error de Firestore:", err);
+        setSyncState("error");
+        showToast("No se pudo conectar con la base de datos compartida.", "error");
+      }
+    );
+  }
+
+  async function forceRefresh(){
+    if(!firebaseReady){ showToast("Firebase no está configurado.", "error"); return; }
+    setSyncState("loading");
+    try{
+      const snapshot = await db.collection(COLLECTION_NAME).get();
+      records = snapshot.docs.map(d=> Object.assign({}, d.data(), {id: d.id}));
+      setSyncState("synced");
+      renderAll();
+    }catch(e){
+      setSyncState("error");
+      showToast("No se pudo actualizar.", "error");
+    }
+  }
+
+  // ---------- Helpers ----------
+  function uid(){
+    if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return "id-" + Date.now() + "-" + Math.random().toString(16).slice(2);
+  }
+
+  function formatDate(iso){
+    if(!iso) return "—";
+    const d = new Date(iso + "T00:00:00");
+    if(isNaN(d)) return iso;
+    return d.toLocaleDateString("es-MX", {day:"2-digit", month:"2-digit", year:"numeric"});
+  }
+
+  function formatDateTime(iso){
+    if(!iso) return "—";
+    const d = new Date(iso);
+    if(isNaN(d)) return iso;
+    return d.toLocaleString("es-MX", {day:"2-digit", month:"2-digit", year:"2-digit", hour:"2-digit", minute:"2-digit"});
+  }
+
+  function formatMoney(n){
+    const num = Number(n) || 0;
+    return num.toLocaleString("es-MX", {style:"currency", currency:"MXN"});
+  }
+
+  // ---------- Render: dashboard cards ----------
+  function renderCards(){
+    const total = records.length;
+    const totalMonto = records.reduce((s,r)=> s + (Number(r.monto)||0), 0);
+    const pendientes = records.filter(r=> r.estatus !== "Pagado");
+    const pendientesMonto = pendientes.reduce((s,r)=> s + (Number(r.monto)||0), 0);
+
+    const statusCounts = {};
+    ESTATUS_OPTIONS.forEach(s=> statusCounts[s]=0);
+    records.forEach(r=>{ if(statusCounts.hasOwnProperty(r.estatus)) statusCounts[r.estatus]++; });
+
+    const tipoCounts = {};
+    TIPO_FALLA_OPTIONS.forEach(t=> tipoCounts[t]=0);
+    records.forEach(r=>{ if(tipoCounts.hasOwnProperty(r.tipoFalla)) tipoCounts[r.tipoFalla]++; });
+    const maxTipo = Math.max(1, ...Object.values(tipoCounts));
+
+    // Histórico por mes (based on fecha de la incidencia)
+    const monthMap = {};
+    records.forEach(r=>{
+      if(!r.fechaIncidencia) return;
+      const d = new Date(r.fechaIncidencia + "T00:00:00");
+      if(isNaN(d)) return;
+      const key = d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0");
+      if(!monthMap[key]) monthMap[key] = { count:0, monto:0, label: d.toLocaleDateString("es-MX",{month:"short", year:"numeric"}) };
+      monthMap[key].count++;
+      monthMap[key].monto += Number(r.monto)||0;
+    });
+    const monthKeys = Object.keys(monthMap).sort();
+    const maxMonthCount = Math.max(1, ...monthKeys.map(k=> monthMap[k].count));
+
+    cardsEl.innerHTML = `
+      <div class="card">
+        <div class="label">Total de incidencias</div>
+        <div class="value">${total}</div>
+        <div class="sub">Capturadas por todo el personal</div>
+      </div>
+      <div class="card">
+        <div class="label">Monto acumulado</div>
+        <div class="value mono" style="font-size:22px;">${formatMoney(totalMonto)}</div>
+        <div class="sub">Suma de todos los registros</div>
+      </div>
+      <div class="card">
+        <div class="label">Pendiente de pago</div>
+        <div class="value mono" style="font-size:22px;">${formatMoney(pendientesMonto)}</div>
+        <div class="sub">${pendientes.length} incidencia(s) no pagadas</div>
+      </div>
+      <div class="card">
+        <div class="label">Por estatus</div>
+        <div class="status-chip-row">
+          ${ESTATUS_OPTIONS.map(s=>{
+            const c = STATUS_COLOR[s];
+            return `<span class="status-chip" style="background:${c.bg};color:${c.fg};"><span class="dot" style="background:${c.dot};"></span>${s} · ${statusCounts[s]}</span>`;
+          }).join("")}
+        </div>
+      </div>
+      <div class="card breakdown-card">
+        <div class="label">Incidencias por tipo de falla</div>
+        ${TIPO_FALLA_OPTIONS.map(t=>{
+          const c = tipoCounts[t];
+          const pct = Math.round((c/maxTipo)*100);
+          return `<div class="bar-row">
+            <span class="bar-label">${t}</span>
+            <span class="bar-track"><span class="bar-fill" style="width:${pct}%;"></span></span>
+            <span class="bar-count">${c}</span>
+          </div>`;
+        }).join("")}
+      </div>
+      <div class="card breakdown-card">
+        <div class="label">Histórico por mes</div>
+        ${monthKeys.length === 0
+          ? '<div class="sub" style="margin-top:10px;">Aún no hay incidencias con fecha registrada.</div>'
+          : monthKeys.map(k=>{
+              const m = monthMap[k];
+              const pct = Math.round((m.count/maxMonthCount)*100);
+              const label = m.label.charAt(0).toUpperCase() + m.label.slice(1);
+              return `<div class="bar-row">
+                <span class="bar-label">${label}</span>
+                <span class="bar-track"><span class="bar-fill" style="width:${pct}%;background:var(--indigo);"></span></span>
+                <span class="bar-count" style="width:auto;min-width:96px;">${m.count} · ${formatMoney(m.monto)}</span>
+              </div>`;
+            }).join("")}
+      </div>
+    `;
+  }
+
+  // ---------- Render: table ----------
+  function getFilteredRecords(){
+    const q = $("searchInput").value.trim().toLowerCase();
+    const estatusFilter = $("filterEstatus").value;
+    const tipoFilter = $("filterTipoFalla").value;
+
+    return records.filter(r=>{
+      if(estatusFilter && r.estatus !== estatusFilter) return false;
+      if(tipoFilter && r.tipoFalla !== tipoFilter) return false;
+      if(q){
+        const hay = [r.planta,r.rp,r.operador,r.ruta,r.parada,r.comentarios,r.inplant,r.unidad]
+          .filter(Boolean).join(" ").toLowerCase();
+        if(!hay.includes(q)) return false;
+      }
+      return true;
+    }).sort((a,b)=> (b.capturadoEn||"").localeCompare(a.capturadoEn||""));
+  }
+
+  function renderTable(){
+    const filtered = getFilteredRecords();
+    tableBadge.textContent = records.length;
+    footerCount.textContent = records.length + " registro" + (records.length===1?"":"s") +
+      (filtered.length !== records.length ? " · " + filtered.length + " mostrado(s)" : "");
+
+    if(filtered.length === 0){
+      tableBody.innerHTML = "";
+      emptyState.style.display = "block";
+      emptyState.querySelector("p").innerHTML = records.length === 0
+        ? "<strong>Aún no hay incidencias registradas.</strong><br>Usa el formulario para capturar la primera."
+        : "<strong>Sin resultados.</strong><br>Ajusta la búsqueda o los filtros.";
+      return;
+    }
+    emptyState.style.display = "none";
+
+    tableBody.innerHTML = filtered.map(r=>{
+      const cells = COLUMNS.map(col=>{
+        const val = r[col.key];
+        if(col.type === "date") return `<td>${formatDate(val)}</td>`;
+        if(col.type === "datetime") return `<td>${formatDateTime(val)}</td>`;
+        if(col.type === "amount") return `<td class="amount-cell">${formatMoney(val)}</td>`;
+        if(col.type === "comment") return `<td class="comments-cell">${val ? escapeHtml(val) : "—"}</td>`;
+        if(col.type === "status"){
+          const c = STATUS_COLOR[val] || {fg:"#555",bg:"#eee",dot:"#999"};
+          return `<td><span class="status-tag" style="background:${c.bg};color:${c.fg};"><span class="dot" style="background:${c.dot};"></span>${val||"—"}</span></td>`;
+        }
+        return `<td>${val ? escapeHtml(String(val)) : "—"}</td>`;
+      }).join("");
+      let statusBtn = "";
+      if(r.estatus === "Operaciones"){
+        statusBtn = `<button class="status-action-btn admin" data-action="to-admin" data-id="${r.id}" title="Pasar a Administración">→ Admin.</button>`;
+      } else if(r.estatus === "Administracion"){
+        statusBtn = `<button class="status-action-btn pagado" data-action="to-pagado" data-id="${r.id}" title="Marcar como pagado">→ Pagado</button>`;
+      }
+      return `<tr data-id="${r.id}">
+        ${cells}
+        <td>
+          <div class="row-actions">
+            ${statusBtn}
+            <button class="icon-btn" data-action="edit" data-id="${r.id}" title="Editar">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button class="icon-btn danger" data-action="delete" data-id="${r.id}" title="Eliminar">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+            </button>
+          </div>
+        </td>
+      </tr>`;
+    }).join("");
+  }
+
+  function escapeHtml(str){
+    const d = document.createElement("div");
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  function renderAll(){
+    renderCards();
+    renderTable();
+  }
+
+  // ---------- Form ----------
+  const fieldIds = ["planta","rp","inplant","jefe","coordinador","fechaIncidencia","tipoFalla","ruta","parada","turno","uberTaxi","monto","unidad","operador","comentarios","estatus"];
+
+  function readForm(){
+    const obj = {};
+    fieldIds.forEach(k=>{ obj[k] = $("f_"+k).value.trim(); });
+    return obj;
+  }
+
+  function fillForm(rec){
+    fieldIds.forEach(k=>{ $("f_"+k).value = rec[k] || ""; });
+  }
+
+  function resetForm(){
+    form.reset();
+    editingId = null;
+    $("editingBanner").style.display = "none";
+    $("formTitle").textContent = "Nueva incidencia";
+    $("submitBtn").textContent = "Guardar registro";
+  }
+
+  form.addEventListener("submit", async function(e){
+    e.preventDefault();
+    const data = readForm();
+
+    if(!data.planta || !data.rp || !data.fechaIncidencia || !data.tipoFalla || !data.ruta || !data.parada || !data.turno || !data.uberTaxi || !data.monto || !data.estatus){
+      showToast("Completa los campos obligatorios (*)", "error");
+      return;
+    }
+    if(!firebaseReady){
+      showToast("Firebase no está configurado todavía.", "error");
+      return;
+    }
+
+    const submitBtn = $("submitBtn");
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Guardando…";
+    setSyncState("loading");
+
+    try{
+      if(editingId){
+        await db.collection(COLLECTION_NAME).doc(editingId).update({
+          ...data,
+          monto: Number(data.monto)
+        });
+      } else {
+        const id = uid();
+        await db.collection(COLLECTION_NAME).doc(id).set({
+          ...data,
+          monto: Number(data.monto),
+          capturadoEn: new Date().toISOString()
+        });
+      }
+      setSyncState("synced");
+      showToast(editingId ? "Registro actualizado" : "Registro guardado y sincronizado");
+    }catch(err){
+      console.error(err);
+      setSyncState("error");
+      showToast("No se pudo guardar. Intenta de nuevo.", "error");
+    }
+
+    submitBtn.disabled = false;
+    resetForm();
+    // el listener en tiempo real de Firestore actualiza "records" y vuelve a pintar automáticamente
+  });
+
+  $("clearFormBtn").addEventListener("click", resetForm);
+  $("cancelEditBtn").addEventListener("click", resetForm);
+
+  // ---------- Row actions (edit / delete) ----------
+  tableBody.addEventListener("click", function(e){
+    const btn = e.target.closest("button[data-action]");
+    if(!btn) return;
+    const id = btn.getAttribute("data-id");
+    const action = btn.getAttribute("data-action");
+
+    if(action === "edit"){
+      const rec = records.find(r=> r.id === id);
+      if(!rec) return;
+      editingId = id;
+      fillForm(rec);
+      $("editingBanner").style.display = "flex";
+      $("formTitle").textContent = "Editar incidencia";
+      $("submitBtn").textContent = "Guardar cambios";
+      window.scrollTo({top:0, behavior:"smooth"});
+    }
+
+    if(action === "to-admin" || action === "to-pagado"){
+      const rec = records.find(r=> r.id === id);
+      if(!rec) return;
+      const targetStatus = action === "to-admin" ? "Administracion" : "Pagado";
+      pendingStatusChange = {id, targetStatus};
+      $("statusModalTitle").textContent = targetStatus === "Administracion"
+        ? "¿Marcar incidencia como resuelta y pasar a Administración?"
+        : "¿Marcar registro como pagado?";
+      $("statusModalText").textContent = `El estatus de este registro cambiará a "${targetStatus}".`;
+      $("statusModalDateLabel").textContent = targetStatus === "Administracion"
+        ? "Fecha en que pasó a Administración"
+        : "Fecha de pago";
+      $("statusModalDate").value = new Date().toISOString().slice(0,10);
+      $("statusModalOverlay").classList.add("show");
+    }
+
+    if(action === "delete"){
+      pendingDeleteId = id;
+      $("modalTitle").textContent = "¿Eliminar este registro?";
+      $("modalText").textContent = "Esta acción no se puede deshacer y afectará a todo el personal que use este panel.";
+      $("modalConfirmBtn").textContent = "Eliminar";
+      $("modalPasswordField").style.display = "none";
+      $("modalPasswordInput").value = "";
+      $("modalOverlay").classList.add("show");
+    }
+  });
+
+  // ---------- Modal ----------
+  $("modalCancelBtn").addEventListener("click", ()=>{
+    $("modalOverlay").classList.remove("show");
+    pendingDeleteId = null;
+    $("modalPasswordInput").value = "";
+  });
+
+  $("modalConfirmBtn").addEventListener("click", async ()=>{
+    if(!firebaseReady){ showToast("Firebase no está configurado.", "error"); return; }
+    if(pendingDeleteId === "ALL"){
+      const entered = $("modalPasswordInput").value;
+      if(entered !== CLEAR_ALL_PASSWORD){
+        showToast("Contraseña incorrecta", "error");
+        return;
+      }
+    }
+
+    const targetId = pendingDeleteId;
+    $("modalOverlay").classList.remove("show");
+    $("modalPasswordInput").value = "";
+    pendingDeleteId = null;
+    setSyncState("loading");
+
+    try{
+      if(targetId === "ALL"){
+        const snapshot = await db.collection(COLLECTION_NAME).get();
+        const batch = db.batch();
+        snapshot.docs.forEach(doc=> batch.delete(doc.ref));
+        await batch.commit();
+      } else if(targetId){
+        await db.collection(COLLECTION_NAME).doc(targetId).delete();
+      }
+      setSyncState("synced");
+      showToast("Registro(s) eliminado(s)");
+    }catch(err){
+      console.error(err);
+      setSyncState("error");
+      showToast("No se pudo eliminar", "error");
+    }
+  });
+
+  $("clearAllBtn").addEventListener("click", ()=>{
+    if(records.length === 0){ showToast("No hay registros que borrar"); return; }
+    pendingDeleteId = "ALL";
+    $("modalTitle").textContent = "¿Borrar todos los registros?";
+    $("modalText").textContent = `Se eliminarán los ${records.length} registros compartidos de forma permanente. Esta acción no se puede deshacer. Ingresa la contraseña para confirmar.`;
+    $("modalConfirmBtn").textContent = "Borrar todo";
+    $("modalPasswordField").style.display = "block";
+    $("modalPasswordInput").value = "";
+    $("modalOverlay").classList.add("show");
+    setTimeout(()=> $("modalPasswordInput").focus(), 50);
+  });
+
+  $("modalPasswordInput").addEventListener("keydown", (e)=>{
+    if(e.key === "Enter"){ e.preventDefault(); $("modalConfirmBtn").click(); }
+  });
+
+  // ---------- Status transition modal ----------
+  $("statusModalCancelBtn").addEventListener("click", ()=>{
+    $("statusModalOverlay").classList.remove("show");
+    pendingStatusChange = null;
+  });
+
+  $("statusModalConfirmBtn").addEventListener("click", async ()=>{
+    if(!pendingStatusChange) return;
+    if(!firebaseReady){ showToast("Firebase no está configurado.", "error"); return; }
+    const dateVal = $("statusModalDate").value;
+    if(!dateVal){
+      showToast("Selecciona una fecha", "error");
+      return;
+    }
+    const { id, targetStatus } = pendingStatusChange;
+    $("statusModalOverlay").classList.remove("show");
+    pendingStatusChange = null;
+    setSyncState("loading");
+
+    const update = { estatus: targetStatus };
+    if(targetStatus === "Administracion") update.fechaAdministracion = dateVal;
+    if(targetStatus === "Pagado") update.fechaPago = dateVal;
+
+    try{
+      await db.collection(COLLECTION_NAME).doc(id).update(update);
+      setSyncState("synced");
+      showToast("Estatus actualizado");
+    }catch(err){
+      console.error(err);
+      setSyncState("error");
+      showToast("No se pudo actualizar", "error");
+    }
+  });
+
+  // ---------- Filters ----------
+  $("searchInput").addEventListener("input", renderTable);
+  $("filterEstatus").addEventListener("change", renderTable);
+  $("filterTipoFalla").addEventListener("change", renderTable);
+
+  // ---------- Refresh ----------
+  $("refreshBtn").addEventListener("click", forceRefresh);
+
+  // ---------- Export to Excel ----------
+  $("exportBtn").addEventListener("click", function(){
+    if(records.length === 0){
+      showToast("Aún no hay registros para exportar", "error");
+      return;
+    }
+    const rows = records
+      .slice()
+      .sort((a,b)=> (a.capturadoEn||"").localeCompare(b.capturadoEn||""))
+      .map(r=>[
+        r.planta||"", r.rp||"", r.inplant||"", r.jefe||"", r.coordinador||"",
+        r.fechaIncidencia||"", r.tipoFalla||"", r.ruta||"", r.parada||"", r.turno||"",
+        r.uberTaxi||"", Number(r.monto)||0, r.unidad||"", r.operador||"", r.comentarios||"",
+        r.estatus||"", r.fechaAdministracion||"", r.fechaPago||"", r.capturadoEn ? formatDateTime(r.capturadoEn) : ""
+      ]);
+    const ws = XLSX.utils.aoa_to_sheet([EXPORT_HEADERS, ...rows]);
+    ws["!cols"] = EXPORT_HEADERS.map(h=> ({wch: Math.max(14, h.length + 2)}));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "TAXIS");
+    const stamp = new Date().toISOString().slice(0,10);
+    XLSX.writeFile(wb, `Reembolsos_LIPU_${stamp}.xlsx`);
+    showToast("Excel descargado");
+  });
+
+  // ---------- Init ----------
+  if(!firebaseReady){
+    $("configWarningBanner").style.display = "block";
+    showToast("Falta configurar Firebase (firebaseConfig) en el código de este archivo.", "error");
+    renderAll();
+  } else {
+    startRealtimeSync();
+  }
+
+})();
+</script>
+</body>
+</html>
