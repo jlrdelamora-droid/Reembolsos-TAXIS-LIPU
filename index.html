@@ -175,6 +175,25 @@
   .lightbox-inner{background:#fff;padding:16px;border-radius:12px;max-width:92vw;max-height:88vh;display:flex;flex-direction:column;align-items:center;box-shadow:var(--shadow);}
   .lightbox-inner img{max-width:100%;max-height:70vh;border-radius:8px;object-fit:contain;}
 
+  /* ---------- Per-column header filter ---------- */
+  .th-filter-btn{
+    border:none;background:none;color:var(--muted);cursor:pointer;padding:0 0 0 6px;
+    font-size:9px;vertical-align:middle;line-height:1;
+  }
+  .th-filter-btn:hover{color:var(--text);}
+  .th-filter-btn.active{color:var(--amber);font-weight:700;}
+  .col-filter-popover{
+    position:fixed;z-index:300;background:#fff;border:1px solid var(--line);border-radius:10px;
+    box-shadow:var(--shadow);width:230px;max-height:320px;display:flex;flex-direction:column;overflow:hidden;
+  }
+  .col-filter-header{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);padding:10px 12px 4px;}
+  .col-filter-search{margin:4px 10px 6px;padding:7px 10px;border:1px solid var(--line);border-radius:7px;font-size:12.5px;font-family:'Inter',sans-serif;}
+  .col-filter-list{overflow-y:auto;padding:0 8px 10px;flex:1;}
+  .col-filter-item{display:flex;align-items:center;gap:8px;padding:6px 6px;border-radius:6px;font-size:12.5px;cursor:pointer;color:var(--text);}
+  .col-filter-item:hover{background:#F5F7FA;}
+  .col-filter-item input{flex-shrink:0;}
+  .col-filter-empty{padding:10px 6px;font-size:12px;color:var(--muted);}
+
   /* ---------- Layout: form + table ---------- */
   .workspace{
     display:grid;
@@ -521,15 +540,7 @@
       </div>
       <div class="table-controls">
         <input type="text" id="searchInput" placeholder="Buscar por planta, RP, inplant, jefe de operaciones, coordinador…">
-        <select id="filterRP">
-          <option value="">Todos los RP</option>
-        </select>
-        <select id="filterInplant">
-          <option value="">Todos los inplant</option>
-        </select>
-        <select id="filterEstatus">
-          <option value="">Todos los estatus</option>
-        </select>
+        <span class="sub" style="align-self:center;">Tip: usa la flechita ▾ en cada columna para filtrar por ese dato</span>
         <button class="btn btn-export" id="exportBtn" type="button">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Descargar Excel
@@ -560,9 +571,6 @@
       </div>
       <div class="table-controls">
         <input type="text" id="searchInput2" placeholder="Buscar por planta, RP, inplant, jefe de operaciones, coordinador…">
-        <select id="filterTipoFalla2">
-          <option value="">Todos los tipos de falla</option>
-        </select>
         <button class="btn btn-export" id="exportBtn2" type="button">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Descargar Excel
@@ -624,6 +632,12 @@
     <img id="lightboxImg" src="" alt="Imagen adjunta">
     <button type="button" class="btn btn-ghost" id="lightboxCloseBtn" style="margin-top:12px;">Cerrar</button>
   </div>
+</div>
+
+<div class="col-filter-popover" id="colFilterPopover" style="display:none;">
+  <div class="col-filter-header" id="colFilterHeaderLabel">Filtrar</div>
+  <input type="text" id="colFilterSearch" class="col-filter-search" placeholder="Buscar valor…">
+  <div class="col-filter-list" id="colFilterList"></div>
 </div>
 
 <script>
@@ -744,17 +758,28 @@
   fillSelect("f_jefe", SUPERVISOR_OPTIONS);
   fillSelect("f_tipoFalla", TIPO_FALLA_OPTIONS);
   fillSelect("f_uberTaxi", UBER_TAXI_OPTIONS);
-  fillSelect("filterEstatus", ACTIVE_ESTATUS_OPTIONS);
-  fillSelect("filterRP", RP_OPTIONS);
-  fillSelect("filterInplant", INPLANT_OPTIONS);
-  fillSelect("filterTipoFalla2", TIPO_FALLA_OPTIONS);
+
+  const NON_FILTERABLE_KEYS = ["__timeline"];
+
+  function addFilterBtn(th, key, tableKind){
+    if(NON_FILTERABLE_KEYS.includes(key)) return;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "th-filter-btn";
+    btn.textContent = "▾";
+    btn.setAttribute("data-col-key", key);
+    btn.setAttribute("data-table-kind", tableKind);
+    th.appendChild(btn);
+  }
 
   // build table headers
   function buildHeaderRow(rowEl, opts){
     opts = opts || {};
+    const tableKind = opts.tableKind || "active";
     if(opts.showAging){
       const thAging = document.createElement("th");
       thAging.textContent = "Días sin pago";
+      addFilterBtn(thAging, "__aging", tableKind);
       rowEl.appendChild(thAging);
     }
     const thStatus = document.createElement("th");
@@ -764,14 +789,15 @@
       if(opts.excludeKeys && opts.excludeKeys.includes(col.key)) return;
       const th = document.createElement("th");
       th.textContent = col.label;
+      addFilterBtn(th, col.key, tableKind);
       rowEl.appendChild(th);
     });
     const thActions = document.createElement("th");
     thActions.textContent = "";
     rowEl.appendChild(thActions);
   }
-  buildHeaderRow(tableHeadRow, {showAging:true});
-  buildHeaderRow(tableHeadRow2, {excludeKeys:["__timeline"]});
+  buildHeaderRow(tableHeadRow, {showAging:true, tableKind:"active"});
+  buildHeaderRow(tableHeadRow2, {excludeKeys:["__timeline"], tableKind:"paid"});
 
   // ---------- Toast ----------
   let toastTimer;
@@ -1098,18 +1124,63 @@
     return records.filter(r=> r.estatus === "Pagado");
   }
 
+  // ---------- Filtro por columna (encabezados) ----------
+  let columnFiltersActive = {}; // { key: Set<string> }
+  let columnFiltersPaid = {};
+  let openFilterCol = null; // { tableKind, key }
+
+  function getFilterState(tableKind){
+    return tableKind === "paid" ? columnFiltersPaid : columnFiltersActive;
+  }
+
+  function getDisplayValue(r, key){
+    if(key === "__aging"){
+      const tier = agingTier(daysSince(r.fechaIncidencia));
+      return tier ? tier.label : "";
+    }
+    if(key === "imagen") return r.imagen ? "Sí" : "No";
+    const col = COLUMNS.find(c=> c.key === key);
+    const val = r[key];
+    if(!col) return (val===undefined||val===null) ? "" : String(val);
+    if(col.type === "amount") return formatMoney(val);
+    if(col.type === "date") return formatDate(val);
+    if(col.type === "datetime") return formatDateTime(val);
+    return (val===undefined||val===null) ? "" : String(val);
+  }
+
+  function getUniqueValuesForColumn(tableKind, key){
+    if(key === "__aging") return ["En tiempo","En retraso","Crítico"];
+    if(key === "imagen") return ["Sí","No"];
+    const source = tableKind === "paid" ? getPaidRecords() : getActiveRecords();
+    const set = new Set();
+    source.forEach(r=>{
+      const v = getDisplayValue(r, key);
+      if(v) set.add(v);
+    });
+    return Array.from(set).sort((a,b)=> a.localeCompare(b, "es"));
+  }
+
+  function updateThFilterActiveState(){
+    document.querySelectorAll(".th-filter-btn").forEach(btn=>{
+      const key = btn.getAttribute("data-col-key");
+      const tableKind = btn.getAttribute("data-table-kind");
+      const state = getFilterState(tableKind);
+      const active = state[key] && state[key].size > 0;
+      btn.classList.toggle("active", !!active);
+    });
+  }
+
   function filterRecords(source, opts){
     const q = opts.searchId ? $(opts.searchId).value.trim().toLowerCase() : "";
-    const estatusFilter = opts.estatusId ? $(opts.estatusId).value : "";
-    const rpFilter = opts.rpId ? $(opts.rpId).value : "";
-    const inplantFilter = opts.inplantId ? $(opts.inplantId).value : "";
-    const tipoFilter = opts.tipoId ? $(opts.tipoId).value : "";
+    const colFilters = getFilterState(opts.tableKind);
 
     return source.filter(r=>{
-      if(estatusFilter && r.estatus !== estatusFilter) return false;
-      if(rpFilter && r.rp !== rpFilter) return false;
-      if(inplantFilter && r.inplant !== inplantFilter) return false;
-      if(tipoFilter && r.tipoFalla !== tipoFilter) return false;
+      for(const key in colFilters){
+        const set = colFilters[key];
+        if(set && set.size > 0){
+          if(!set.has(getDisplayValue(r, key))) return false;
+        }
+      }
       if(q){
         const hay = [r.planta, r.rp, r.inplant, r.jefe, r.coordinador]
           .filter(Boolean).join(" ").toLowerCase();
@@ -1203,7 +1274,7 @@
 
   function renderTable(){
     const activeRecords = getActiveRecords();
-    const filtered = filterRecords(activeRecords, {searchId:"searchInput", estatusId:"filterEstatus", rpId:"filterRP", inplantId:"filterInplant"});
+    const filtered = filterRecords(activeRecords, {searchId:"searchInput", tableKind:"active"});
     tableBadge.textContent = activeRecords.length;
     footerCount.textContent = activeRecords.length + " registro" + (activeRecords.length===1?"":"s") +
       (filtered.length !== activeRecords.length ? " · " + filtered.length + " mostrado(s)" : "");
@@ -1222,7 +1293,7 @@
 
   function renderPaidTable(){
     const paidRecords = getPaidRecords();
-    const filtered = filterRecords(paidRecords, {searchId:"searchInput2", tipoId:"filterTipoFalla2"});
+    const filtered = filterRecords(paidRecords, {searchId:"searchInput2", tableKind:"paid"});
     tableBadge2.textContent = paidRecords.length;
     footerCount2.textContent = paidRecords.length + " registro" + (paidRecords.length===1?"":"s") +
       (filtered.length !== paidRecords.length ? " · " + filtered.length + " mostrado(s)" : "");
@@ -1555,11 +1626,100 @@
 
   // ---------- Filters ----------
   $("searchInput").addEventListener("input", renderTable);
-  $("filterEstatus").addEventListener("change", renderTable);
-  $("filterRP").addEventListener("change", renderTable);
-  $("filterInplant").addEventListener("change", renderTable);
   $("searchInput2").addEventListener("input", renderPaidTable);
-  $("filterTipoFalla2").addEventListener("change", renderPaidTable);
+
+  // ---------- Column header filter popover ----------
+  const colFilterPopover = $("colFilterPopover");
+  const colFilterSearch = $("colFilterSearch");
+  const colFilterList = $("colFilterList");
+  const colFilterHeaderLabel = $("colFilterHeaderLabel");
+
+  function closeColFilterPopover(){
+    colFilterPopover.style.display = "none";
+    openFilterCol = null;
+  }
+
+  function renderColFilterList(){
+    if(!openFilterCol) return;
+    const { tableKind, key } = openFilterCol;
+    const col = COLUMNS.find(c=> c.key === key);
+    colFilterHeaderLabel.textContent = key === "__aging" ? "Días sin pago" : (col ? col.label : key);
+
+    const allValues = getUniqueValuesForColumn(tableKind, key);
+    const query = colFilterSearch.value.trim().toLowerCase();
+    const state = getFilterState(tableKind);
+    const selectedSet = state[key];
+    const hasFilter = selectedSet && selectedSet.size > 0;
+    const visibleValues = query ? allValues.filter(v=> v.toLowerCase().includes(query)) : allValues;
+
+    let html = `<label class="col-filter-item">
+      <input type="checkbox" id="colFilterAllToggle" ${!hasFilter ? "checked" : ""}> <strong>Todos</strong>
+    </label><div class="month-filter-divider"></div>`;
+
+    if(visibleValues.length === 0){
+      html += `<div class="col-filter-empty">Sin valores que coincidan.</div>`;
+    } else {
+      html += visibleValues.map(v=>{
+        const checked = hasFilter ? selectedSet.has(v) : false;
+        return `<label class="col-filter-item">
+          <input type="checkbox" class="col-filter-value-cb" value="${escapeHtml(v)}" ${checked ? "checked" : ""}> ${escapeHtml(v)}
+        </label>`;
+      }).join("");
+    }
+    colFilterList.innerHTML = html;
+  }
+
+  document.addEventListener("click", (e)=>{
+    const btn = e.target.closest(".th-filter-btn");
+    if(btn){
+      e.stopPropagation();
+      const key = btn.getAttribute("data-col-key");
+      const tableKind = btn.getAttribute("data-table-kind");
+      openFilterCol = { tableKind, key };
+      colFilterSearch.value = "";
+      renderColFilterList();
+
+      const rect = btn.getBoundingClientRect();
+      const popW = 230;
+      let left = rect.left;
+      if(left + popW > window.innerWidth - 10) left = window.innerWidth - popW - 10;
+      if(left < 10) left = 10;
+      let top = rect.bottom + 6;
+      colFilterPopover.style.left = left + "px";
+      colFilterPopover.style.top = top + "px";
+      colFilterPopover.style.display = "flex";
+      return;
+    }
+    if(colFilterPopover.style.display !== "none" && !colFilterPopover.contains(e.target)){
+      closeColFilterPopover();
+    }
+  });
+
+  window.addEventListener("scroll", closeColFilterPopover, true);
+  window.addEventListener("resize", closeColFilterPopover);
+
+  colFilterSearch.addEventListener("input", renderColFilterList);
+
+  colFilterList.addEventListener("change", (e)=>{
+    if(!openFilterCol) return;
+    const { tableKind, key } = openFilterCol;
+    const state = getFilterState(tableKind);
+    if(e.target.id === "colFilterAllToggle"){
+      if(e.target.checked) delete state[key];
+    } else if(e.target.classList.contains("col-filter-value-cb")){
+      if(!state[key]) state[key] = new Set();
+      const val = e.target.value;
+      if(e.target.checked){
+        state[key].add(val);
+      } else {
+        state[key].delete(val);
+        if(state[key].size === 0) delete state[key];
+      }
+    }
+    renderColFilterList();
+    updateThFilterActiveState();
+    if(tableKind === "paid") renderPaidTable(); else renderTable();
+  });
 
   // ---------- Month filter (Total de incidencias / Monto acumulado) ----------
   $("monthFilterMenu").addEventListener("change", (e)=>{
