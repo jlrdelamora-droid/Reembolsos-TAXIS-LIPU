@@ -23,6 +23,8 @@
     --amber-bg:#FEF3E2;
     --indigo:#6366F1;
     --indigo-bg:#EEEEFE;
+    --rose:#DB2777;
+    --rose-bg:#FCE7F3;
     --teal:#0E9F8E;
     --teal-bg:#E3F7F4;
     --red:#DC4C4C;
@@ -102,6 +104,28 @@
 
   main{max-width:1280px;margin:0 auto;padding:24px clamp(16px,4vw,40px) 60px;}
 
+  /* ---------- Month filter ---------- */
+  .filter-bar{margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .month-filter{position:relative;display:inline-block;}
+  .month-filter summary{
+    list-style:none;cursor:pointer;user-select:none;
+    display:inline-flex;align-items:center;gap:6px;
+    background:#fff;border:1px solid var(--line);border-radius:8px;
+    padding:8px 12px;font-size:13px;font-weight:600;color:var(--text);
+  }
+  .month-filter summary::-webkit-details-marker{display:none;}
+  .month-filter summary::after{content:"▾";font-size:10px;color:var(--muted);margin-left:2px;}
+  .month-filter[open] summary::after{content:"▴";}
+  .month-filter-menu{
+    position:absolute;top:calc(100% + 6px);left:0;z-index:20;
+    background:#fff;border:1px solid var(--line);border-radius:10px;
+    box-shadow:var(--shadow);padding:8px;min-width:210px;max-height:260px;overflow:auto;
+  }
+  .month-filter-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;font-size:13px;cursor:pointer;color:var(--text);}
+  .month-filter-item:hover{background:#F5F7FA;}
+  .month-filter-item input{flex-shrink:0;}
+  .month-filter-divider{height:1px;background:var(--line);margin:4px 2px;}
+
   /* ---------- Dashboard cards ---------- */
   .cards{
     display:grid;
@@ -132,8 +156,24 @@
   .bar-track{flex:1;height:8px;background:#EEF1F6;border-radius:5px;overflow:hidden;}
   .bar-fill{height:100%;border-radius:5px;background:var(--amber);}
   .bar-count{width:22px;text-align:right;color:var(--muted);font-family:'IBM Plex Mono',monospace;}
+  .scroll-list{max-height:168px;overflow-y:auto;padding-right:4px;}
+  .scroll-list::-webkit-scrollbar{width:6px;}
+  .scroll-list::-webkit-scrollbar-thumb{background:#D5DAE2;border-radius:3px;}
 
   @media (max-width:720px){ .breakdown-card{grid-column:span 1;} }
+
+  /* ---------- Per-row status timeline ---------- */
+  .timeline-row{display:flex;align-items:center;margin-top:5px;}
+  .tl-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:#E2E6ED;}
+  .tl-dot.current{box-shadow:0 0 0 3px rgba(11,18,32,0.08);}
+  .tl-line{width:12px;height:2px;background:#E2E6ED;flex-shrink:0;}
+
+  /* ---------- Attached image ---------- */
+  .row-thumb{width:34px;height:34px;object-fit:cover;border-radius:6px;cursor:pointer;border:1px solid var(--line);display:block;}
+  .imagen-preview-wrap{margin-top:8px;display:flex;align-items:center;gap:10px;}
+  .imagen-preview-wrap img{max-width:120px;max-height:90px;border-radius:8px;border:1px solid var(--line);display:block;}
+  .lightbox-inner{background:#fff;padding:16px;border-radius:12px;max-width:92vw;max-height:88vh;display:flex;flex-direction:column;align-items:center;box-shadow:var(--shadow);}
+  .lightbox-inner img{max-width:100%;max-height:70vh;border-radius:8px;object-fit:contain;}
 
   /* ---------- Layout: form + table ---------- */
   .workspace{
@@ -251,6 +291,8 @@
     font-size:11.5px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;
     white-space:nowrap;
   }
+  .status-action-btn.rh{background:var(--rose-bg);color:#9D174D;}
+  .status-action-btn.rh:hover{background:#FBCFE8;}
   .status-action-btn.admin{background:var(--indigo-bg);color:#4338CA;}
   .status-action-btn.admin:hover{background:#DEDEFC;}
   .status-action-btn.pagado{background:var(--teal-bg);color:#0B6E62;}
@@ -327,6 +369,13 @@
 
 <main>
 
+  <div class="filter-bar">
+    <details class="month-filter" id="monthFilterDetails">
+      <summary>Filtrar por mes <span id="monthFilterLabel">(todos)</span></summary>
+      <div class="month-filter-menu" id="monthFilterMenu"><!-- filled by JS --></div>
+    </details>
+  </div>
+
   <section class="cards" id="cards"><!-- filled by JS --></section>
 
   <section class="workspace">
@@ -359,7 +408,9 @@
 
           <div class="field">
             <label>Inplant <span class="opt">(opcional)</span></label>
-            <input type="text" id="f_inplant" placeholder="Ej. IN-014">
+            <select id="f_inplant">
+              <option value="">Selecciona…</option>
+            </select>
           </div>
 
           <div class="field">
@@ -427,15 +478,26 @@
           </div>
 
           <div class="field">
-            <label>Estatus <span class="req">*</span></label>
-            <select id="f_estatus" required>
+            <label>Cobro a operador <span class="req">*</span></label>
+            <select id="f_cobroOperador" required>
               <option value="">Selecciona…</option>
+              <option value="Sí">Sí</option>
+              <option value="No">No</option>
             </select>
           </div>
 
           <div class="field field-span">
             <label>Comentarios <span class="opt">(opcional)</span></label>
             <textarea id="f_comentarios" placeholder="Detalles adicionales…"></textarea>
+          </div>
+
+          <div class="field field-span">
+            <label>Imagen <span class="opt">(opcional)</span></label>
+            <input type="file" id="f_imagen_file" accept="image/*">
+            <div class="imagen-preview-wrap" id="imagenPreviewWrap" style="display:none;">
+              <img id="imagenPreview" src="" alt="Vista previa">
+              <button type="button" class="btn-danger-text" id="removeImagenBtn">Quitar imagen</button>
+            </div>
           </div>
 
           <div class="form-actions">
@@ -454,12 +516,15 @@
         <span class="badge" id="tableBadge">0</span>
       </div>
       <div class="table-controls">
-        <input type="text" id="searchInput" placeholder="Buscar por planta, RP, operador, ruta, comentarios…">
+        <input type="text" id="searchInput" placeholder="Buscar por planta, RP, inplant, jefe de operaciones, coordinador…">
+        <select id="filterRP">
+          <option value="">Todos los RP</option>
+        </select>
+        <select id="filterInplant">
+          <option value="">Todos los inplant</option>
+        </select>
         <select id="filterEstatus">
           <option value="">Todos los estatus</option>
-        </select>
-        <select id="filterTipoFalla">
-          <option value="">Todos los tipos de falla</option>
         </select>
         <button class="btn btn-export" id="exportBtn" type="button">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -480,7 +545,39 @@
       </div>
       <div class="footer-bar">
         <span class="count" id="footerCount">0 registros</span>
-        <button class="btn-danger-text" id="clearAllBtn" type="button">Borrar todos los registros</button>
+      </div>
+    </div>
+
+    <!-- TABLE: PAGADOS -->
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Taxis pagados</h2>
+        <span class="badge" id="tableBadge2" style="background:var(--teal-bg);color:#0B6E62;">0</span>
+      </div>
+      <div class="table-controls">
+        <input type="text" id="searchInput2" placeholder="Buscar por planta, RP, inplant, jefe de operaciones, coordinador…">
+        <select id="filterTipoFalla2">
+          <option value="">Todos los tipos de falla</option>
+        </select>
+        <button class="btn btn-export" id="exportBtn2" type="button">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Descargar Excel
+        </button>
+      </div>
+      <div class="table-wrap">
+        <table id="dataTable2">
+          <thead>
+            <tr id="tableHeadRow2"></tr>
+          </thead>
+          <tbody id="tableBody2"></tbody>
+        </table>
+        <div class="empty-state" id="emptyState2" style="display:none;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 12h18M3 12a2 2 0 0 1 2-2h1l2-5h8l2 5h1a2 2 0 0 1 2 2v5a1 1 0 0 1-1 1h-1a2 2 0 1 1-4 0H8a2 2 0 1 1-4 0H3a1 1 0 0 1-1-1v-4z"/></svg>
+          <p><strong>Todavía no hay taxis pagados.</strong><br>Cuando marques un registro como "Pagado", va a aparecer aquí.</p>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <span class="count" id="footerCount2">0 registros</span>
       </div>
     </div>
   </section>
@@ -518,6 +615,13 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="imageLightbox">
+  <div class="lightbox-inner">
+    <img id="lightboxImg" src="" alt="Imagen adjunta">
+    <button type="button" class="btn btn-ghost" id="lightboxCloseBtn" style="margin-top:12px;">Cerrar</button>
+  </div>
+</div>
+
 <script>
 (function(){
   "use strict";
@@ -552,21 +656,26 @@
   // =====================================================================
 
   // ---------- Reference lists (from the original REEMBOLSOS_LIPU template) ----------
-  const PLANTA_OPTIONS = ["ABB","AMAZON 1","AMAZON 2","AMAZON 3","AXIONLOG","BUENO ALIMENTOS","CELESTICA AGUA FRIA","CELESTICA APODACA","DAWNFOODS","FORNEY","FUNDACION TERNIUM","GLOBAL","HAMADEN","HUDSON","LEVARE","LIEBHERR","LISI","LIXIL","MOTA ENGIL","NIDEC - CMD","NIDEC - COLD","NIDEC - NLA","NIDEC - USEM","OWENS","PALACIO DE HIERRO","PANEL REY","PEAK","PLASMAN","PLASTIEXPORTS","PLATO EXPRESS","QUALTIA","SAINT GOBAIN","SCANPAINT","SIEMENS","TOPO CHICO","UDEM - CIRCUITOS","UDEM - DIRECTO","VEOLIA","VERTIV","VIAKEM","WOLONG"];
+  const PLANTA_OPTIONS = ["ABB","AMAZON 1","AMAZON 2","AMAZON 3","AXIONLOG","BUENO ALIMENTOS","CELESTICA AGUA FRIA","CELESTICA APODACA","DAWNFOODS","FORNEY","FUNDACION TERNIUM","GLOBAL","HAMADEN","HUBBEL","HUDSON","LEVARE","LIEBHERR","LISI","LIXIL","MOTA ENGIL","NIDEC - CMD","NIDEC - COLD","NIDEC - NLA","NIDEC - USEM","OWENS","PALACIO DE HIERRO","PANEL REY","PEAK","PLASMAN","PLASTIEXPORTS","PLATO EXPRESS","QUALTIA","SAINT GOBAIN","SCANPAINT","SIEMENS","TOPO CHICO","UDEM - CIRCUITOS","UDEM - DIRECTO","VEOLIA","VERTIV","VIAKEM","WOLONG"];
   const RP_OPTIONS = ["Pedro Perez","Lizbeth Luna","Armando Nava"];
+  const INPLANT_OPTIONS = ["N/A","Azael Cruz","Lorena Ruiz","Lizbeth Sanchez","Nanci Diosdado","Jane Martinez","Mayra Guerrero","Karla Alday","Esmeralda Alfonso","Eduardo Jair Cruz","Julia Iveeth Cerda","Alondra Herrera","Valeria Ibarra","Elena Arellano","Victor Padilla"];
   const SUPERVISOR_OPTIONS = ["Vacante","Obiel Mendez","Orlando Hernandez","Victor Limas"];
   const TIPO_FALLA_OPTIONS = ["Omision de Parada","Falla Mecanica","Ruta Tirada","Operador Dormido","Falla de GPS","Ruta mal realizada"];
   const UBER_TAXI_OPTIONS = ["TAXI","UBER"];
-  const ESTATUS_OPTIONS = ["Operaciones","Administracion","Pagado"];
+  const ESTATUS_OPTIONS = ["Operaciones","RH","Administracion","Pagado"];
+  const ACTIVE_ESTATUS_OPTIONS = ["Operaciones","RH","Administracion"];
 
   const STATUS_COLOR = {
     "Operaciones":   {fg:"#92660A", bg:"var(--amber-bg)", dot:"var(--amber)"},
+    "RH":            {fg:"#9D174D", bg:"var(--rose-bg)", dot:"var(--rose)"},
     "Administracion":{fg:"#4338CA", bg:"var(--indigo-bg)", dot:"var(--indigo)"},
     "Pagado":        {fg:"#0B6E62", bg:"var(--teal-bg)", dot:"var(--teal)"}
   };
 
   const COLUMNS = [
     {key:"planta", label:"Planta"},
+    {key:"estatus", label:"Estatus", type:"status"},
+    {key:"__timeline", label:"Línea de tiempo", type:"timeline"},
     {key:"rp", label:"RP"},
     {key:"inplant", label:"Inplant"},
     {key:"jefe", label:"Jefe de operaciones"},
@@ -580,20 +689,22 @@
     {key:"monto", label:"Monto", type:"amount"},
     {key:"unidad", label:"Unidad"},
     {key:"operador", label:"Operador"},
+    {key:"cobroOperador", label:"Cobro a operador"},
     {key:"comentarios", label:"Comentarios", type:"comment"},
-    {key:"estatus", label:"Estatus", type:"status"},
+    {key:"imagen", label:"Imagen", type:"image"},
+    {key:"fechaRH", label:"Fecha entrega a RH", type:"date"},
     {key:"fechaAdministracion", label:"Fecha pase a Administración", type:"date"},
     {key:"fechaPago", label:"Fecha de pago", type:"date"},
     {key:"capturadoEn", label:"Fecha de captura", type:"datetime"}
   ];
 
-  const EXPORT_HEADERS = ["PLANTA","RP","INPLANT","JEFE DE OPERACIONES","COORDINADOR","FECHA DE LA INCIDENCIA","TIPO DE FALLA","RUTA","PARADA","TURNO","UBER / TAXI","MONTO","UNIDAD","OPERADOR","COMENTARIOS","ESTATUS","FECHA PASE A ADMINISTRACION","FECHA DE PAGO","FECHA DE CAPTURA"];
+  const EXPORT_HEADERS = ["PLANTA","RP","INPLANT","JEFE DE OPERACIONES","COORDINADOR","FECHA DE LA INCIDENCIA","TIPO DE FALLA","RUTA","PARADA","TURNO","UBER / TAXI","MONTO","UNIDAD","OPERADOR","COBRO A OPERADOR","COMENTARIOS","TIENE IMAGEN","ESTATUS","FECHA ENTREGA A RH","FECHA PASE A ADMINISTRACION","FECHA DE PAGO","FECHA DE CAPTURA"];
 
-  const CLEAR_ALL_PASSWORD = "LIPU2026";
+  const DELETE_PASSWORD = "LIPU2026";
 
   let records = [];
   let editingId = null;
-  let pendingDeleteId = null;
+  let pendingModalAction = null; // { type: "delete" | "edit", id }
   let pendingStatusChange = null;
   let unsubscribeSnapshot = null;
 
@@ -606,6 +717,11 @@
   const emptyState = $("emptyState");
   const tableBadge = $("tableBadge");
   const footerCount = $("footerCount");
+  const tableHeadRow2 = $("tableHeadRow2");
+  const tableBody2 = $("tableBody2");
+  const emptyState2 = $("emptyState2");
+  const tableBadge2 = $("tableBadge2");
+  const footerCount2 = $("footerCount2");
   const syncDot = $("syncDot");
   const syncText = $("syncText");
 
@@ -620,22 +736,32 @@
   }
   fillSelect("f_planta", PLANTA_OPTIONS);
   fillSelect("f_rp", RP_OPTIONS);
+  fillSelect("f_inplant", INPLANT_OPTIONS);
   fillSelect("f_jefe", SUPERVISOR_OPTIONS);
   fillSelect("f_tipoFalla", TIPO_FALLA_OPTIONS);
   fillSelect("f_uberTaxi", UBER_TAXI_OPTIONS);
-  fillSelect("f_estatus", ESTATUS_OPTIONS);
-  fillSelect("filterEstatus", ESTATUS_OPTIONS);
-  fillSelect("filterTipoFalla", TIPO_FALLA_OPTIONS);
+  fillSelect("filterEstatus", ACTIVE_ESTATUS_OPTIONS);
+  fillSelect("filterRP", RP_OPTIONS);
+  fillSelect("filterInplant", INPLANT_OPTIONS);
+  fillSelect("filterTipoFalla2", TIPO_FALLA_OPTIONS);
 
-  // build table header
-  COLUMNS.forEach(col=>{
-    const th = document.createElement("th");
-    th.textContent = col.label;
-    tableHeadRow.appendChild(th);
-  });
-  const thActions = document.createElement("th");
-  thActions.textContent = "";
-  tableHeadRow.appendChild(thActions);
+  // build table headers
+  function buildHeaderRow(rowEl, excludeKeys){
+    const thStatus = document.createElement("th");
+    thStatus.textContent = "";
+    rowEl.appendChild(thStatus);
+    COLUMNS.forEach(col=>{
+      if(excludeKeys && excludeKeys.includes(col.key)) return;
+      const th = document.createElement("th");
+      th.textContent = col.label;
+      rowEl.appendChild(th);
+    });
+    const thActions = document.createElement("th");
+    thActions.textContent = "";
+    rowEl.appendChild(thActions);
+  }
+  buildHeaderRow(tableHeadRow);
+  buildHeaderRow(tableHeadRow2, ["__timeline"]);
 
   // ---------- Toast ----------
   let toastTimer;
@@ -718,9 +844,63 @@
   }
 
   // ---------- Render: dashboard cards ----------
+  let selectedMonths = []; // vacío = todos los meses
+
+  function getMonthKey(dateStr){
+    if(!dateStr) return null;
+    const d = new Date(dateStr + "T00:00:00");
+    if(isNaN(d)) return null;
+    return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0");
+  }
+
+  function monthKeyToLabel(key){
+    const [y,m] = key.split("-");
+    const d = new Date(Number(y), Number(m)-1, 1);
+    const label = d.toLocaleDateString("es-MX",{month:"short", year:"numeric"});
+    return label.charAt(0).toUpperCase() + label.slice(1);
+  }
+
+  function renderMonthFilter(monthKeys){
+    const menu = $("monthFilterMenu");
+    menu.innerHTML = `
+      <label class="month-filter-item">
+        <input type="checkbox" id="monthFilterAll" ${selectedMonths.length===0 ? "checked" : ""}> Todos los meses
+      </label>
+      <div class="month-filter-divider"></div>
+      ${monthKeys.map(k=>{
+        const checked = selectedMonths.includes(k);
+        return `<label class="month-filter-item">
+          <input type="checkbox" class="month-filter-cb" value="${k}" ${checked ? "checked" : ""}> ${monthKeyToLabel(k)}
+        </label>`;
+      }).join("")}
+    `;
+    $("monthFilterLabel").textContent = selectedMonths.length === 0
+      ? "(todos)"
+      : `(${selectedMonths.length} seleccionado${selectedMonths.length>1?"s":""})`;
+  }
+
   function renderCards(){
-    const total = records.length;
-    const totalMonto = records.reduce((s,r)=> s + (Number(r.monto)||0), 0);
+    // Histórico por mes (based on fecha de la incidencia) — se calcula primero
+    // porque también alimenta el menú de filtro de mes.
+    const monthMap = {};
+    records.forEach(r=>{
+      const key = getMonthKey(r.fechaIncidencia);
+      if(!key) return;
+      if(!monthMap[key]) monthMap[key] = { count:0, monto:0 };
+      monthMap[key].count++;
+      monthMap[key].monto += Number(r.monto)||0;
+    });
+    const monthKeys = Object.keys(monthMap).sort();
+    const maxMonthCount = Math.max(1, ...monthKeys.map(k=> monthMap[k].count));
+    renderMonthFilter(monthKeys);
+
+    // Total de incidencias y monto acumulado respetan el filtro de mes(es)
+    const recordsForTotals = selectedMonths.length === 0
+      ? records
+      : records.filter(r=> selectedMonths.includes(getMonthKey(r.fechaIncidencia)));
+    const total = recordsForTotals.length;
+    const totalMonto = recordsForTotals.reduce((s,r)=> s + (Number(r.monto)||0), 0);
+
     const pendientes = records.filter(r=> r.estatus !== "Pagado");
     const pendientesMonto = pendientes.reduce((s,r)=> s + (Number(r.monto)||0), 0);
 
@@ -728,35 +908,26 @@
     ESTATUS_OPTIONS.forEach(s=> statusCounts[s]=0);
     records.forEach(r=>{ if(statusCounts.hasOwnProperty(r.estatus)) statusCounts[r.estatus]++; });
 
-    const tipoCounts = {};
-    TIPO_FALLA_OPTIONS.forEach(t=> tipoCounts[t]=0);
-    records.forEach(r=>{ if(tipoCounts.hasOwnProperty(r.tipoFalla)) tipoCounts[r.tipoFalla]++; });
-    const maxTipo = Math.max(1, ...Object.values(tipoCounts));
-
-    // Histórico por mes (based on fecha de la incidencia)
-    const monthMap = {};
-    records.forEach(r=>{
-      if(!r.fechaIncidencia) return;
-      const d = new Date(r.fechaIncidencia + "T00:00:00");
-      if(isNaN(d)) return;
-      const key = d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0");
-      if(!monthMap[key]) monthMap[key] = { count:0, monto:0, label: d.toLocaleDateString("es-MX",{month:"short", year:"numeric"}) };
-      monthMap[key].count++;
-      monthMap[key].monto += Number(r.monto)||0;
+    const plantaCounts = {};
+    recordsForTotals.forEach(r=>{
+      if(!r.planta) return;
+      if(!plantaCounts[r.planta]) plantaCounts[r.planta] = { count:0, monto:0 };
+      plantaCounts[r.planta].count++;
+      plantaCounts[r.planta].monto += Number(r.monto)||0;
     });
-    const monthKeys = Object.keys(monthMap).sort();
-    const maxMonthCount = Math.max(1, ...monthKeys.map(k=> monthMap[k].count));
+    const plantaKeys = Object.keys(plantaCounts).sort((a,b)=> plantaCounts[b].count - plantaCounts[a].count);
+    const maxPlantaCount = Math.max(1, ...plantaKeys.map(k=> plantaCounts[k].count));
 
     cardsEl.innerHTML = `
       <div class="card">
         <div class="label">Total de incidencias</div>
         <div class="value">${total}</div>
-        <div class="sub">Capturadas por todo el personal</div>
+        <div class="sub">${selectedMonths.length === 0 ? "Capturadas por todo el personal" : "Filtrado por mes seleccionado"}</div>
       </div>
       <div class="card">
         <div class="label">Monto acumulado</div>
         <div class="value mono" style="font-size:22px;">${formatMoney(totalMonto)}</div>
-        <div class="sub">Suma de todos los registros</div>
+        <div class="sub">${selectedMonths.length === 0 ? "Suma de todos los registros" : "Suma del mes seleccionado"}</div>
       </div>
       <div class="card">
         <div class="label">Pendiente de pago</div>
@@ -773,16 +944,20 @@
         </div>
       </div>
       <div class="card breakdown-card">
-        <div class="label">Incidencias por tipo de falla</div>
-        ${TIPO_FALLA_OPTIONS.map(t=>{
-          const c = tipoCounts[t];
-          const pct = Math.round((c/maxTipo)*100);
-          return `<div class="bar-row">
-            <span class="bar-label">${t}</span>
-            <span class="bar-track"><span class="bar-fill" style="width:${pct}%;"></span></span>
-            <span class="bar-count">${c}</span>
-          </div>`;
-        }).join("")}
+        <div class="label">Incidencias totales por planta</div>
+        <div class="scroll-list">
+          ${plantaKeys.length === 0
+            ? '<div class="sub" style="margin-top:10px;">Aún no hay incidencias registradas.</div>'
+            : plantaKeys.map(k=>{
+                const c = plantaCounts[k];
+                const pct = Math.round((c.count/maxPlantaCount)*100);
+                return `<div class="bar-row">
+                  <span class="bar-label" title="${escapeHtml(k)}">${escapeHtml(k)}</span>
+                  <span class="bar-track"><span class="bar-fill" style="width:${pct}%;"></span></span>
+                  <span class="bar-count" style="width:auto;min-width:96px;">${c.count} · ${formatMoney(c.monto)}</span>
+                </div>`;
+              }).join("")}
+        </div>
       </div>
       <div class="card breakdown-card">
         <div class="label">Histórico por mes</div>
@@ -791,7 +966,7 @@
           : monthKeys.map(k=>{
               const m = monthMap[k];
               const pct = Math.round((m.count/maxMonthCount)*100);
-              const label = m.label.charAt(0).toUpperCase() + m.label.slice(1);
+              const label = monthKeyToLabel(k);
               return `<div class="bar-row">
                 <span class="bar-label">${label}</span>
                 <span class="bar-track"><span class="bar-fill" style="width:${pct}%;background:var(--indigo);"></span></span>
@@ -803,16 +978,27 @@
   }
 
   // ---------- Render: table ----------
-  function getFilteredRecords(){
-    const q = $("searchInput").value.trim().toLowerCase();
-    const estatusFilter = $("filterEstatus").value;
-    const tipoFilter = $("filterTipoFalla").value;
+  function getActiveRecords(){
+    return records.filter(r=> r.estatus !== "Pagado");
+  }
+  function getPaidRecords(){
+    return records.filter(r=> r.estatus === "Pagado");
+  }
 
-    return records.filter(r=>{
+  function filterRecords(source, opts){
+    const q = opts.searchId ? $(opts.searchId).value.trim().toLowerCase() : "";
+    const estatusFilter = opts.estatusId ? $(opts.estatusId).value : "";
+    const rpFilter = opts.rpId ? $(opts.rpId).value : "";
+    const inplantFilter = opts.inplantId ? $(opts.inplantId).value : "";
+    const tipoFilter = opts.tipoId ? $(opts.tipoId).value : "";
+
+    return source.filter(r=>{
       if(estatusFilter && r.estatus !== estatusFilter) return false;
+      if(rpFilter && r.rp !== rpFilter) return false;
+      if(inplantFilter && r.inplant !== inplantFilter) return false;
       if(tipoFilter && r.tipoFalla !== tipoFilter) return false;
       if(q){
-        const hay = [r.planta,r.rp,r.operador,r.ruta,r.parada,r.comentarios,r.inplant,r.unidad]
+        const hay = [r.planta, r.rp, r.inplant, r.jefe, r.coordinador]
           .filter(Boolean).join(" ").toLowerCase();
         if(!hay.includes(q)) return false;
       }
@@ -820,56 +1006,113 @@
     }).sort((a,b)=> (b.capturadoEn||"").localeCompare(a.capturadoEn||""));
   }
 
+  function buildTimelineHtml(r){
+    const stages = r.cobroOperador === "Sí"
+      ? [
+          {key:"Operaciones", label:"Operaciones", date:r.fechaIncidencia||null},
+          {key:"RH", label:"RH", date:r.fechaRH||null},
+          {key:"Administracion", label:"Administración", date:r.fechaAdministracion||null},
+          {key:"Pagado", label:"Pagado", date:r.fechaPago||null}
+        ]
+      : [
+          {key:"Operaciones", label:"Operaciones", date:r.fechaIncidencia||null},
+          {key:"Administracion", label:"Administración", date:r.fechaAdministracion||null},
+          {key:"Pagado", label:"Pagado", date:r.fechaPago||null}
+        ];
+    const currentIdx = stages.findIndex(st=> st.key === r.estatus);
+    const dots = stages.map((st, i)=>{
+      const c = STATUS_COLOR[st.key];
+      const reached = currentIdx !== -1 && i <= currentIdx;
+      const isCurrent = i === currentIdx;
+      const style = reached ? `background:${c.dot};` : "";
+      const dateTxt = st.date ? formatDate(st.date) : (reached ? "" : "pendiente");
+      const title = `${st.label}${dateTxt ? ": " + dateTxt : ""}`;
+      return `<span class="tl-dot${isCurrent ? " current" : ""}" style="${style}" title="${escapeHtml(title)}"></span>`;
+    }).join('<span class="tl-line"></span>');
+    return `<div class="timeline-row">${dots}</div>`;
+  }
+
+  function buildRowHtml(r, excludeKeys){
+    const cells = COLUMNS.filter(col=> !(excludeKeys && excludeKeys.includes(col.key))).map(col=>{
+      if(col.type === "timeline") return `<td>${buildTimelineHtml(r)}</td>`;
+      const val = r[col.key];
+      if(col.type === "image"){
+        return `<td>${val ? `<img src="${val}" class="row-thumb" data-action="view-image" data-id="${r.id}" title="Ver imagen adjunta">` : "—"}</td>`;
+      }
+      if(col.type === "date") return `<td>${formatDate(val)}</td>`;
+      if(col.type === "datetime") return `<td>${formatDateTime(val)}</td>`;
+      if(col.type === "amount") return `<td class="amount-cell">${formatMoney(val)}</td>`;
+      if(col.type === "comment") return `<td class="comments-cell">${val ? escapeHtml(val) : "—"}</td>`;
+      if(col.type === "status"){
+        const c = STATUS_COLOR[val] || {fg:"#555",bg:"#eee",dot:"#999"};
+        return `<td><span class="status-tag" style="background:${c.bg};color:${c.fg};"><span class="dot" style="background:${c.dot};"></span>${val||"—"}</span></td>`;
+      }
+      return `<td>${val ? escapeHtml(String(val)) : "—"}</td>`;
+    }).join("");
+    let statusBtn = "";
+    if(r.estatus === "Operaciones"){
+      if(r.cobroOperador === "Sí"){
+        statusBtn = `<button class="status-action-btn rh" data-action="to-rh" data-id="${r.id}" title="Pasar a RH">→ RH</button>`;
+      } else {
+        statusBtn = `<button class="status-action-btn admin" data-action="to-admin" data-id="${r.id}" title="Pasar a Administración">→ Admin.</button>`;
+      }
+    } else if(r.estatus === "RH"){
+      statusBtn = `<button class="status-action-btn admin" data-action="to-admin" data-id="${r.id}" title="Pasar a Administración">→ Admin.</button>`;
+    } else if(r.estatus === "Administracion"){
+      statusBtn = `<button class="status-action-btn pagado" data-action="to-pagado" data-id="${r.id}" title="Marcar como pagado">→ Pagado</button>`;
+    }
+    return `<tr data-id="${r.id}">
+      <td><div class="row-actions">${statusBtn}</div></td>
+      ${cells}
+      <td>
+        <div class="row-actions">
+          <button class="icon-btn" data-action="edit" data-id="${r.id}" title="Editar">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button class="icon-btn danger" data-action="delete" data-id="${r.id}" title="Eliminar">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+          </button>
+        </div>
+      </td>
+    </tr>`;
+  }
+
   function renderTable(){
-    const filtered = getFilteredRecords();
-    tableBadge.textContent = records.length;
-    footerCount.textContent = records.length + " registro" + (records.length===1?"":"s") +
-      (filtered.length !== records.length ? " · " + filtered.length + " mostrado(s)" : "");
+    const activeRecords = getActiveRecords();
+    const filtered = filterRecords(activeRecords, {searchId:"searchInput", estatusId:"filterEstatus", rpId:"filterRP", inplantId:"filterInplant"});
+    tableBadge.textContent = activeRecords.length;
+    footerCount.textContent = activeRecords.length + " registro" + (activeRecords.length===1?"":"s") +
+      (filtered.length !== activeRecords.length ? " · " + filtered.length + " mostrado(s)" : "");
 
     if(filtered.length === 0){
       tableBody.innerHTML = "";
       emptyState.style.display = "block";
-      emptyState.querySelector("p").innerHTML = records.length === 0
-        ? "<strong>Aún no hay incidencias registradas.</strong><br>Usa el formulario para capturar la primera."
+      emptyState.querySelector("p").innerHTML = activeRecords.length === 0
+        ? "<strong>No hay incidencias activas.</strong><br>Usa el formulario para capturar una nueva."
         : "<strong>Sin resultados.</strong><br>Ajusta la búsqueda o los filtros.";
       return;
     }
     emptyState.style.display = "none";
+    tableBody.innerHTML = filtered.map(r=> buildRowHtml(r)).join("");
+  }
 
-    tableBody.innerHTML = filtered.map(r=>{
-      const cells = COLUMNS.map(col=>{
-        const val = r[col.key];
-        if(col.type === "date") return `<td>${formatDate(val)}</td>`;
-        if(col.type === "datetime") return `<td>${formatDateTime(val)}</td>`;
-        if(col.type === "amount") return `<td class="amount-cell">${formatMoney(val)}</td>`;
-        if(col.type === "comment") return `<td class="comments-cell">${val ? escapeHtml(val) : "—"}</td>`;
-        if(col.type === "status"){
-          const c = STATUS_COLOR[val] || {fg:"#555",bg:"#eee",dot:"#999"};
-          return `<td><span class="status-tag" style="background:${c.bg};color:${c.fg};"><span class="dot" style="background:${c.dot};"></span>${val||"—"}</span></td>`;
-        }
-        return `<td>${val ? escapeHtml(String(val)) : "—"}</td>`;
-      }).join("");
-      let statusBtn = "";
-      if(r.estatus === "Operaciones"){
-        statusBtn = `<button class="status-action-btn admin" data-action="to-admin" data-id="${r.id}" title="Pasar a Administración">→ Admin.</button>`;
-      } else if(r.estatus === "Administracion"){
-        statusBtn = `<button class="status-action-btn pagado" data-action="to-pagado" data-id="${r.id}" title="Marcar como pagado">→ Pagado</button>`;
-      }
-      return `<tr data-id="${r.id}">
-        ${cells}
-        <td>
-          <div class="row-actions">
-            ${statusBtn}
-            <button class="icon-btn" data-action="edit" data-id="${r.id}" title="Editar">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            </button>
-            <button class="icon-btn danger" data-action="delete" data-id="${r.id}" title="Eliminar">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-            </button>
-          </div>
-        </td>
-      </tr>`;
-    }).join("");
+  function renderPaidTable(){
+    const paidRecords = getPaidRecords();
+    const filtered = filterRecords(paidRecords, {searchId:"searchInput2", tipoId:"filterTipoFalla2"});
+    tableBadge2.textContent = paidRecords.length;
+    footerCount2.textContent = paidRecords.length + " registro" + (paidRecords.length===1?"":"s") +
+      (filtered.length !== paidRecords.length ? " · " + filtered.length + " mostrado(s)" : "");
+
+    if(filtered.length === 0){
+      tableBody2.innerHTML = "";
+      emptyState2.style.display = "block";
+      emptyState2.querySelector("p").innerHTML = paidRecords.length === 0
+        ? "<strong>Todavía no hay taxis pagados.</strong><br>Cuando marques un registro como \"Pagado\", va a aparecer aquí."
+        : "<strong>Sin resultados.</strong><br>Ajusta la búsqueda o el filtro.";
+      return;
+    }
+    emptyState2.style.display = "none";
+    tableBody2.innerHTML = filtered.map(r=> buildRowHtml(r, ["__timeline"])).join("");
   }
 
   function escapeHtml(str){
@@ -881,19 +1124,93 @@
   function renderAll(){
     renderCards();
     renderTable();
+    renderPaidTable();
   }
 
   // ---------- Form ----------
-  const fieldIds = ["planta","rp","inplant","jefe","coordinador","fechaIncidencia","tipoFalla","ruta","parada","turno","uberTaxi","monto","unidad","operador","comentarios","estatus"];
+  const fieldIds = ["planta","rp","inplant","jefe","coordinador","fechaIncidencia","tipoFalla","ruta","parada","turno","uberTaxi","monto","unidad","operador","cobroOperador","comentarios"];
+
+  // ---------- Imagen adjunta (opcional) ----------
+  let currentImagenDataUrl = "";
+
+  function compressImageFile(file, maxDim, quality){
+    return new Promise((resolve, reject)=>{
+      const reader = new FileReader();
+      reader.onload = (e)=>{
+        const img = new Image();
+        img.onload = ()=>{
+          let w = img.width, h = img.height;
+          if(w > maxDim || h > maxDim){
+            if(w > h){ h = Math.round(h * maxDim / w); w = maxDim; }
+            else { w = Math.round(w * maxDim / h); h = maxDim; }
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = w; canvas.height = h;
+          canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL("image/jpeg", quality));
+        };
+        img.onerror = reject;
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function showImagenPreview(dataUrl){
+    $("imagenPreview").src = dataUrl;
+    $("imagenPreviewWrap").style.display = "flex";
+  }
+
+  function hideImagenPreview(){
+    $("imagenPreview").src = "";
+    $("imagenPreviewWrap").style.display = "none";
+  }
+
+  $("f_imagen_file").addEventListener("change", async (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    if(!file.type.startsWith("image/")){
+      showToast("Selecciona un archivo de imagen", "error");
+      e.target.value = "";
+      return;
+    }
+    try{
+      const dataUrl = await compressImageFile(file, 900, 0.7);
+      currentImagenDataUrl = dataUrl;
+      showImagenPreview(dataUrl);
+    }catch(err){
+      console.error(err);
+      showToast("No se pudo procesar la imagen", "error");
+    }
+  });
+
+  $("removeImagenBtn").addEventListener("click", ()=>{
+    currentImagenDataUrl = "";
+    $("f_imagen_file").value = "";
+    hideImagenPreview();
+  });
+
+  function loadImagenIntoForm(rec){
+    if(rec && rec.imagen){
+      currentImagenDataUrl = rec.imagen;
+      showImagenPreview(rec.imagen);
+    } else {
+      currentImagenDataUrl = "";
+      hideImagenPreview();
+    }
+  }
 
   function readForm(){
     const obj = {};
     fieldIds.forEach(k=>{ obj[k] = $("f_"+k).value.trim(); });
+    obj.imagen = currentImagenDataUrl || "";
     return obj;
   }
 
   function fillForm(rec){
     fieldIds.forEach(k=>{ $("f_"+k).value = rec[k] || ""; });
+    loadImagenIntoForm(rec);
   }
 
   function resetForm(){
@@ -902,13 +1219,15 @@
     $("editingBanner").style.display = "none";
     $("formTitle").textContent = "Nueva incidencia";
     $("submitBtn").textContent = "Guardar registro";
+    currentImagenDataUrl = "";
+    hideImagenPreview();
   }
 
   form.addEventListener("submit", async function(e){
     e.preventDefault();
     const data = readForm();
 
-    if(!data.planta || !data.rp || !data.fechaIncidencia || !data.tipoFalla || !data.ruta || !data.parada || !data.turno || !data.uberTaxi || !data.monto || !data.estatus){
+    if(!data.planta || !data.rp || !data.fechaIncidencia || !data.tipoFalla || !data.ruta || !data.parada || !data.turno || !data.uberTaxi || !data.monto || !data.cobroOperador){
       showToast("Completa los campos obligatorios (*)", "error");
       return;
     }
@@ -933,6 +1252,7 @@
         await db.collection(COLLECTION_NAME).doc(id).set({
           ...data,
           monto: Number(data.monto),
+          estatus: "Operaciones",
           capturadoEn: new Date().toISOString()
         });
       }
@@ -953,101 +1273,121 @@
   $("cancelEditBtn").addEventListener("click", resetForm);
 
   // ---------- Row actions (edit / delete) ----------
-  tableBody.addEventListener("click", function(e){
-    const btn = e.target.closest("button[data-action]");
-    if(!btn) return;
-    const id = btn.getAttribute("data-id");
-    const action = btn.getAttribute("data-action");
+  function openEditForm(rec){
+    editingId = rec.id;
+    fillForm(rec);
+    $("editingBanner").style.display = "flex";
+    $("formTitle").textContent = "Editar incidencia";
+    $("submitBtn").textContent = "Guardar cambios";
+    window.scrollTo({top:0, behavior:"smooth"});
+  }
+
+  function handleRowActionClick(e){
+    const el = e.target.closest("[data-action]");
+    if(!el) return;
+    const id = el.getAttribute("data-id");
+    const action = el.getAttribute("data-action");
+
+    if(action === "view-image"){
+      const rec = records.find(r=> r.id === id);
+      if(!rec || !rec.imagen) return;
+      $("lightboxImg").src = rec.imagen;
+      $("imageLightbox").classList.add("show");
+      return;
+    }
 
     if(action === "edit"){
       const rec = records.find(r=> r.id === id);
       if(!rec) return;
-      editingId = id;
-      fillForm(rec);
-      $("editingBanner").style.display = "flex";
-      $("formTitle").textContent = "Editar incidencia";
-      $("submitBtn").textContent = "Guardar cambios";
-      window.scrollTo({top:0, behavior:"smooth"});
+      const isPaidTable = e.currentTarget === tableBody2;
+      if(isPaidTable){
+        pendingModalAction = {type:"edit", id};
+        $("modalTitle").textContent = "¿Editar este registro pagado?";
+        $("modalText").textContent = "Este registro ya está pagado. Ingresa la contraseña para poder editarlo.";
+        $("modalConfirmBtn").textContent = "Continuar";
+        $("modalPasswordField").style.display = "block";
+        $("modalPasswordInput").value = "";
+        $("modalOverlay").classList.add("show");
+        setTimeout(()=> $("modalPasswordInput").focus(), 50);
+        return;
+      }
+      openEditForm(rec);
     }
 
-    if(action === "to-admin" || action === "to-pagado"){
+    if(action === "to-rh" || action === "to-admin" || action === "to-pagado"){
       const rec = records.find(r=> r.id === id);
       if(!rec) return;
-      const targetStatus = action === "to-admin" ? "Administracion" : "Pagado";
+      const targetStatus = action === "to-rh" ? "RH" : (action === "to-admin" ? "Administracion" : "Pagado");
       pendingStatusChange = {id, targetStatus};
-      $("statusModalTitle").textContent = targetStatus === "Administracion"
-        ? "¿Marcar incidencia como resuelta y pasar a Administración?"
-        : "¿Marcar registro como pagado?";
+      $("statusModalTitle").textContent =
+        targetStatus === "RH" ? "¿Marcar como entregado a RH?" :
+        targetStatus === "Administracion" ? "¿Marcar incidencia como resuelta y pasar a Administración?" :
+        "¿Marcar registro como pagado?";
       $("statusModalText").textContent = `El estatus de este registro cambiará a "${targetStatus}".`;
-      $("statusModalDateLabel").textContent = targetStatus === "Administracion"
-        ? "Fecha en que pasó a Administración"
-        : "Fecha de pago";
+      $("statusModalDateLabel").textContent =
+        targetStatus === "RH" ? "Fecha de entrega a RH" :
+        targetStatus === "Administracion" ? "Fecha en que pasó a Administración" :
+        "Fecha de pago";
       $("statusModalDate").value = new Date().toISOString().slice(0,10);
       $("statusModalOverlay").classList.add("show");
     }
 
     if(action === "delete"){
-      pendingDeleteId = id;
+      pendingModalAction = {type:"delete", id};
       $("modalTitle").textContent = "¿Eliminar este registro?";
-      $("modalText").textContent = "Esta acción no se puede deshacer y afectará a todo el personal que use este panel.";
+      $("modalText").textContent = "Esta acción no se puede deshacer y afectará a todo el personal que use este panel. Ingresa la contraseña para confirmar.";
       $("modalConfirmBtn").textContent = "Eliminar";
-      $("modalPasswordField").style.display = "none";
+      $("modalPasswordField").style.display = "block";
       $("modalPasswordInput").value = "";
       $("modalOverlay").classList.add("show");
+      setTimeout(()=> $("modalPasswordInput").focus(), 50);
     }
+  }
+  tableBody.addEventListener("click", handleRowActionClick);
+  tableBody2.addEventListener("click", handleRowActionClick);
+
+  $("lightboxCloseBtn").addEventListener("click", ()=> $("imageLightbox").classList.remove("show"));
+  $("imageLightbox").addEventListener("click", (e)=>{
+    if(e.target.id === "imageLightbox") $("imageLightbox").classList.remove("show");
   });
 
   // ---------- Modal ----------
   $("modalCancelBtn").addEventListener("click", ()=>{
     $("modalOverlay").classList.remove("show");
-    pendingDeleteId = null;
+    pendingModalAction = null;
     $("modalPasswordInput").value = "";
   });
 
   $("modalConfirmBtn").addEventListener("click", async ()=>{
-    if(!firebaseReady){ showToast("Firebase no está configurado.", "error"); return; }
-    if(pendingDeleteId === "ALL"){
-      const entered = $("modalPasswordInput").value;
-      if(entered !== CLEAR_ALL_PASSWORD){
-        showToast("Contraseña incorrecta", "error");
-        return;
-      }
+    if(!pendingModalAction) return;
+    const entered = $("modalPasswordInput").value;
+    if(entered !== DELETE_PASSWORD){
+      showToast("Contraseña incorrecta", "error");
+      return;
     }
 
-    const targetId = pendingDeleteId;
+    const { type, id } = pendingModalAction;
     $("modalOverlay").classList.remove("show");
     $("modalPasswordInput").value = "";
-    pendingDeleteId = null;
-    setSyncState("loading");
+    pendingModalAction = null;
 
+    if(type === "edit"){
+      const rec = records.find(r=> r.id === id);
+      if(rec) openEditForm(rec);
+      return;
+    }
+
+    if(!firebaseReady){ showToast("Firebase no está configurado.", "error"); return; }
+    setSyncState("loading");
     try{
-      if(targetId === "ALL"){
-        const snapshot = await db.collection(COLLECTION_NAME).get();
-        const batch = db.batch();
-        snapshot.docs.forEach(doc=> batch.delete(doc.ref));
-        await batch.commit();
-      } else if(targetId){
-        await db.collection(COLLECTION_NAME).doc(targetId).delete();
-      }
+      await db.collection(COLLECTION_NAME).doc(id).delete();
       setSyncState("synced");
-      showToast("Registro(s) eliminado(s)");
+      showToast("Registro eliminado");
     }catch(err){
       console.error(err);
       setSyncState("error");
       showToast("No se pudo eliminar", "error");
     }
-  });
-
-  $("clearAllBtn").addEventListener("click", ()=>{
-    if(records.length === 0){ showToast("No hay registros que borrar"); return; }
-    pendingDeleteId = "ALL";
-    $("modalTitle").textContent = "¿Borrar todos los registros?";
-    $("modalText").textContent = `Se eliminarán los ${records.length} registros compartidos de forma permanente. Esta acción no se puede deshacer. Ingresa la contraseña para confirmar.`;
-    $("modalConfirmBtn").textContent = "Borrar todo";
-    $("modalPasswordField").style.display = "block";
-    $("modalPasswordInput").value = "";
-    $("modalOverlay").classList.add("show");
-    setTimeout(()=> $("modalPasswordInput").focus(), 50);
   });
 
   $("modalPasswordInput").addEventListener("keydown", (e)=>{
@@ -1074,6 +1414,7 @@
     setSyncState("loading");
 
     const update = { estatus: targetStatus };
+    if(targetStatus === "RH") update.fechaRH = dateVal;
     if(targetStatus === "Administracion") update.fechaAdministracion = dateVal;
     if(targetStatus === "Pagado") update.fechaPago = dateVal;
 
@@ -1091,33 +1432,71 @@
   // ---------- Filters ----------
   $("searchInput").addEventListener("input", renderTable);
   $("filterEstatus").addEventListener("change", renderTable);
-  $("filterTipoFalla").addEventListener("change", renderTable);
+  $("filterRP").addEventListener("change", renderTable);
+  $("filterInplant").addEventListener("change", renderTable);
+  $("searchInput2").addEventListener("input", renderPaidTable);
+  $("filterTipoFalla2").addEventListener("change", renderPaidTable);
+
+  // ---------- Month filter (Total de incidencias / Monto acumulado) ----------
+  $("monthFilterMenu").addEventListener("change", (e)=>{
+    if(e.target.id === "monthFilterAll"){
+      if(e.target.checked) selectedMonths = [];
+    } else if(e.target.classList.contains("month-filter-cb")){
+      const val = e.target.value;
+      if(e.target.checked){
+        if(!selectedMonths.includes(val)) selectedMonths.push(val);
+      } else {
+        selectedMonths = selectedMonths.filter(m=> m !== val);
+      }
+      if(selectedMonths.length === 0){
+        // nada seleccionado equivale a "todos"
+      }
+    }
+    renderCards();
+  });
 
   // ---------- Refresh ----------
   $("refreshBtn").addEventListener("click", forceRefresh);
 
   // ---------- Export to Excel ----------
-  $("exportBtn").addEventListener("click", function(){
-    if(records.length === 0){
-      showToast("Aún no hay registros para exportar", "error");
-      return;
-    }
-    const rows = records
+  function buildExportRows(list){
+    return list
       .slice()
       .sort((a,b)=> (a.capturadoEn||"").localeCompare(b.capturadoEn||""))
       .map(r=>[
         r.planta||"", r.rp||"", r.inplant||"", r.jefe||"", r.coordinador||"",
         r.fechaIncidencia||"", r.tipoFalla||"", r.ruta||"", r.parada||"", r.turno||"",
-        r.uberTaxi||"", Number(r.monto)||0, r.unidad||"", r.operador||"", r.comentarios||"",
-        r.estatus||"", r.fechaAdministracion||"", r.fechaPago||"", r.capturadoEn ? formatDateTime(r.capturadoEn) : ""
+        r.uberTaxi||"", Number(r.monto)||0, r.unidad||"", r.operador||"", r.cobroOperador||"", r.comentarios||"",
+        r.imagen ? "Sí" : "No",
+        r.estatus||"", r.fechaRH||"", r.fechaAdministracion||"", r.fechaPago||"", r.capturadoEn ? formatDateTime(r.capturadoEn) : ""
       ]);
+  }
+
+  function downloadExcel(rows, sheetName, filenamePrefix){
     const ws = XLSX.utils.aoa_to_sheet([EXPORT_HEADERS, ...rows]);
     ws["!cols"] = EXPORT_HEADERS.map(h=> ({wch: Math.max(14, h.length + 2)}));
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "TAXIS");
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
     const stamp = new Date().toISOString().slice(0,10);
-    XLSX.writeFile(wb, `Reembolsos_LIPU_${stamp}.xlsx`);
+    XLSX.writeFile(wb, `${filenamePrefix}_${stamp}.xlsx`);
     showToast("Excel descargado");
+  }
+
+  $("exportBtn").addEventListener("click", function(){
+    if(records.length === 0){
+      showToast("Aún no hay registros para exportar", "error");
+      return;
+    }
+    downloadExcel(buildExportRows(records), "TAXIS", "Reembolsos_LIPU");
+  });
+
+  $("exportBtn2").addEventListener("click", function(){
+    const paidRecords = getPaidRecords();
+    if(paidRecords.length === 0){
+      showToast("Aún no hay taxis pagados para exportar", "error");
+      return;
+    }
+    downloadExcel(buildExportRows(paidRecords), "PAGADOS", "Reembolsos_LIPU_Pagados");
   });
 
   // ---------- Init ----------
