@@ -559,6 +559,7 @@
       <div class="selection-bar" id="selectionBarTaxis" style="display:none;">
         <span class="selection-count">0 seleccionados</span>
         <button type="button" class="btn btn-export" data-send-kind="taxis">Enviar por correo</button>
+        <button type="button" class="btn" style="background:var(--red);color:#fff;" data-delete-kind="taxis">Eliminar seleccionados</button>
         <button type="button" class="btn-danger-text" data-clear-kind="taxis">Limpiar selección</button>
       </div>
       <div class="table-controls">
@@ -595,6 +596,7 @@
       <div class="selection-bar" id="selectionBar2" style="display:none;">
         <span class="selection-count">0 seleccionados</span>
         <button type="button" class="btn btn-export" data-send-kind="paid">Enviar por correo</button>
+        <button type="button" class="btn" style="background:var(--red);color:#fff;" data-delete-kind="paid">Eliminar seleccionados</button>
         <button type="button" class="btn-danger-text" data-clear-kind="paid">Limpiar selección</button>
       </div>
       <div class="table-controls">
@@ -1491,7 +1493,7 @@
       return;
     }
     emptyState2.style.display = "none";
-    tableBody2.innerHTML = filtered.map(r=> buildRowHtml(r, {excludeKeys:["__timeline"]})).join("");
+    tableBody2.innerHTML = filtered.map(r=> buildRowHtml(r, {excludeKeys:["__timeline"], tableKind:"paid"})).join("");
   }
 
   function renderCobroTable(suffix){
@@ -1516,7 +1518,7 @@
       return;
     }
     emptyEl.style.display = "none";
-    bodyEl.innerHTML = filtered.map(r=> buildRowHtml(r, {excludeKeys:["__timeline"], showAging:true})).join("");
+    bodyEl.innerHTML = filtered.map(r=> buildRowHtml(r, {excludeKeys:["__timeline"], showAging:true, tableKind:def.tableKind})).join("");
   }
 
   function escapeHtml(str){
@@ -1789,21 +1791,39 @@
       return;
     }
 
-    const { type, id } = pendingModalAction;
+    const action = pendingModalAction;
     $("modalOverlay").classList.remove("show");
     $("modalPasswordInput").value = "";
     pendingModalAction = null;
 
-    if(type === "edit"){
-      const rec = records.find(r=> r.id === id);
+    if(action.type === "edit"){
+      const rec = records.find(r=> r.id === action.id);
       if(rec) openEditForm(rec);
       return;
     }
 
     if(!firebaseReady){ showToast("Firebase no está configurado.", "error"); return; }
     setSyncState("loading");
+
+    if(action.type === "bulk-delete"){
+      try{
+        const batch = db.batch();
+        action.ids.forEach(recId=> batch.delete(db.collection(COLLECTION_NAME).doc(recId)));
+        await batch.commit();
+        selectedIdsByKind[action.kind] = new Set();
+        updateSelectionBar(action.kind);
+        setSyncState("synced");
+        showToast(`${action.ids.length} registro(s) eliminado(s)`);
+      }catch(err){
+        console.error(err);
+        setSyncState("error");
+        showToast("No se pudo eliminar", "error");
+      }
+      return;
+    }
+
     try{
-      await db.collection(COLLECTION_NAME).doc(id).delete();
+      await db.collection(COLLECTION_NAME).doc(action.id).delete();
       setSyncState("synced");
       showToast("Registro eliminado");
     }catch(err){
@@ -1987,6 +2007,21 @@
       if(!ids || ids.size === 0){ showToast("Selecciona al menos un registro", "error"); return; }
       const selectedRecords = records.filter(r=> ids.has(r.id));
       sendEmailForRecords(selectedRecords);
+      return;
+    }
+    const deleteBtn = e.target.closest("[data-delete-kind]");
+    if(deleteBtn){
+      const kind = deleteBtn.getAttribute("data-delete-kind");
+      const ids = selectedIdsByKind[kind];
+      if(!ids || ids.size === 0){ showToast("Selecciona al menos un registro", "error"); return; }
+      pendingModalAction = {type:"bulk-delete", kind, ids:Array.from(ids)};
+      $("modalTitle").textContent = `¿Eliminar ${ids.size} registro(s) seleccionados?`;
+      $("modalText").textContent = "Esta acción no se puede deshacer y afectará a todo el personal que use este panel. Ingresa la contraseña para confirmar.";
+      $("modalConfirmBtn").textContent = "Eliminar";
+      $("modalPasswordField").style.display = "block";
+      $("modalPasswordInput").value = "";
+      $("modalOverlay").classList.add("show");
+      setTimeout(()=> $("modalPasswordInput").focus(), 50);
       return;
     }
     const clearBtn = e.target.closest("[data-clear-kind]");
