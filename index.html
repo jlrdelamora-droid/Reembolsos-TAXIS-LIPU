@@ -24,6 +24,8 @@
     --indigo:#6366F1;
     --indigo-bg:#EEEEFE;
     --rose:#DB2777;
+    --violet:#7C3AED;
+    --violet-bg:#EDE7FE;
     --rose-bg:#FCE7F3;
     --teal:#0E9F8E;
     --teal-bg:#E3F7F4;
@@ -286,6 +288,15 @@
   .table-controls select{
     border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;background:#FBFCFD;
   }
+  .selection-bar{
+    display:flex;align-items:center;gap:12px;padding:10px 20px;
+    background:var(--amber-bg);border-bottom:1px solid #F3DDAE;font-size:13px;
+  }
+  .selection-bar .selection-count{font-weight:700;color:#92660A;}
+  .selection-bar .btn{padding:6px 12px;font-size:12.5px;}
+  .selection-bar .btn-danger-text{font-size:12.5px;}
+  input.row-select-cb, input.select-all-cb{width:15px;height:15px;cursor:pointer;}
+
   .table-wrap{max-height:560px;overflow:auto;}
   table{border-collapse:collapse;width:100%;min-width:1400px;font-size:12.8px;}
   thead th{
@@ -300,10 +311,11 @@
   .row-actions{display:flex;gap:6px;}
   .icon-btn{
     border:none;background:#EEF1F6;color:var(--text);border-radius:6px;width:26px;height:26px;
-    cursor:pointer;display:inline-flex;align-items:center;justify-content:center;
+    cursor:pointer;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;
   }
   .icon-btn:hover{background:#E2E6ED;}
   .icon-btn.danger:hover{background:var(--red-bg);color:var(--red);}
+  .icon-btn.mail:hover{background:var(--indigo-bg);color:#4338CA;}
 
   .status-action-btn{
     border:none;border-radius:6px;padding:0 10px;height:26px;
@@ -316,6 +328,8 @@
   .status-action-btn.admin:hover{background:#DEDEFC;}
   .status-action-btn.pagado{background:var(--teal-bg);color:#0B6E62;}
   .status-action-btn.pagado:hover{background:#CFF0EB;}
+  .status-action-btn.revert{background:#EEF1F6;color:#475569;}
+  .status-action-btn.revert:hover{background:#E2E6ED;}
 
   .status-tag{
     font-size:11px;font-weight:600;padding:4px 9px;border-radius:999px;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;
@@ -501,11 +515,15 @@
           </div>
 
           <div class="field">
-            <label>Cobro a operador <span class="req">*</span></label>
+            <label>Cobro a: <span class="req">*</span></label>
             <select id="f_cobroOperador" required>
               <option value="">Selecciona…</option>
-              <option value="Sí">Sí</option>
-              <option value="No">No</option>
+              <option value="Operador">Operador</option>
+              <option value="Cliente">Cliente</option>
+              <option value="Mantenimiento">Mantenimiento</option>
+              <option value="Logística">Logística</option>
+              <option value="Capital Humano">Capital Humano</option>
+              <option value="Relaciones Publicas">Relaciones Publicas</option>
             </select>
           </div>
 
@@ -532,42 +550,52 @@
       </div>
     </div>
 
-    <!-- TABLE -->
+    <!-- TABLE: COBROS TAXIS -->
     <div class="panel">
       <div class="panel-head">
-        <h2>Incidencias registradas</h2>
-        <span class="badge" id="tableBadge">0</span>
+        <h2>Registro de Incidencias</h2>
+        <span class="badge" id="tableBadgeTaxis" style="background:var(--amber-bg);color:#92660A;">0</span>
+      </div>
+      <div class="selection-bar" id="selectionBarTaxis" style="display:none;">
+        <span class="selection-count">0 seleccionados</span>
+        <button type="button" class="btn btn-export" data-send-kind="taxis">Enviar por correo</button>
+        <button type="button" class="btn-danger-text" data-clear-kind="taxis">Limpiar selección</button>
       </div>
       <div class="table-controls">
-        <input type="text" id="searchInput" placeholder="Buscar por planta, RP, inplant, jefe de operaciones, coordinador…">
+        <input type="text" id="searchInputTaxis" placeholder="Buscar por planta, RP, inplant, jefe de operaciones, coordinador…">
         <span class="sub" style="align-self:center;">Tip: usa la flechita ▾ en cada columna para filtrar por ese dato</span>
-        <button class="btn btn-export" id="exportBtn" type="button">
+        <button class="btn btn-export" id="exportBtnTaxis" type="button">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Descargar Excel
         </button>
       </div>
       <div class="table-wrap">
-        <table id="dataTable">
+        <table id="dataTableTaxis">
           <thead>
-            <tr id="tableHeadRow"></tr>
+            <tr id="tableHeadRowTaxis"></tr>
           </thead>
-          <tbody id="tableBody"></tbody>
+          <tbody id="tableBodyTaxis"></tbody>
         </table>
-        <div class="empty-state" id="emptyState" style="display:none;">
+        <div class="empty-state" id="emptyStateTaxis" style="display:none;">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 12h18M3 12a2 2 0 0 1 2-2h1l2-5h8l2 5h1a2 2 0 0 1 2 2v5a1 1 0 0 1-1 1h-1a2 2 0 1 1-4 0H8a2 2 0 1 1-4 0H3a1 1 0 0 1-1-1v-4z"/></svg>
-          <p><strong>Aún no hay incidencias registradas.</strong><br>Usa el formulario para capturar la primera.</p>
+          <p><strong>Aún no hay incidencias pendientes.</strong><br>Usa el formulario para capturar una nueva.</p>
         </div>
       </div>
       <div class="footer-bar">
-        <span class="count" id="footerCount">0 registros</span>
+        <span class="count" id="footerCountTaxis">0 registros</span>
       </div>
     </div>
 
     <!-- TABLE: PAGADOS -->
     <div class="panel">
       <div class="panel-head">
-        <h2>Taxis pagados</h2>
+        <h2>Taxis Pagados</h2>
         <span class="badge" id="tableBadge2" style="background:var(--teal-bg);color:#0B6E62;">0</span>
+      </div>
+      <div class="selection-bar" id="selectionBar2" style="display:none;">
+        <span class="selection-count">0 seleccionados</span>
+        <button type="button" class="btn btn-export" data-send-kind="paid">Enviar por correo</button>
+        <button type="button" class="btn-danger-text" data-clear-kind="paid">Limpiar selección</button>
       </div>
       <div class="table-controls">
         <input type="text" id="searchInput2" placeholder="Buscar por planta, RP, inplant, jefe de operaciones, coordinador…">
@@ -616,7 +644,7 @@
   <div class="modal">
     <h3 id="statusModalTitle">Actualizar estatus</h3>
     <p id="statusModalText"></p>
-    <div class="field">
+    <div class="field" id="statusModalDateField">
       <label id="statusModalDateLabel">Fecha</label>
       <input type="date" id="statusModalDate">
     </div>
@@ -678,7 +706,7 @@
   const RP_OPTIONS = ["Pedro Perez","Lizbeth Luna","Armando Nava"];
   const INPLANT_OPTIONS = ["N/A","Azael Cruz","Lorena Ruiz","Lizbeth Sanchez","Nanci Diosdado","Jane Martinez","Mayra Guerrero","Karla Alday","Esmeralda Alfonso","Eduardo Jair Cruz","Julia Iveeth Cerda","Alondra Herrera","Valeria Ibarra","Elena Arellano","Victor Padilla"];
   const SUPERVISOR_OPTIONS = ["Vacante","Obiel Mendez","Orlando Hernandez","Victor Limas"];
-  const TIPO_FALLA_OPTIONS = ["Omision de Parada","Falla Mecanica","Ruta Tirada","Operador Dormido","Falla de GPS","Ruta mal realizada"];
+  const TIPO_FALLA_OPTIONS = ["Omision de Parada","Falla Mecanica","Ruta Tirada","Operador Dormido","Falla de GPS","Ruta mal realizada","Vacante de operador","Sobreaforo"];
   const UBER_TAXI_OPTIONS = ["TAXI","UBER"];
   const ESTATUS_OPTIONS = ["Operaciones","RH","Administracion","Pagado"];
   const ACTIVE_ESTATUS_OPTIONS = ["Operaciones","RH","Administracion"];
@@ -707,7 +735,7 @@
     {key:"monto", label:"Monto", type:"amount"},
     {key:"unidad", label:"Unidad"},
     {key:"operador", label:"Operador"},
-    {key:"cobroOperador", label:"Cobro a operador"},
+    {key:"cobroOperador", label:"Cobro a"},
     {key:"comentarios", label:"Comentarios", type:"comment"},
     {key:"imagen", label:"Imagen", type:"image"},
     {key:"fechaRH", label:"Fecha entrega a RH", type:"date"},
@@ -716,13 +744,15 @@
     {key:"capturadoEn", label:"Fecha de captura", type:"datetime"}
   ];
 
-  const EXPORT_HEADERS = ["PLANTA","RP","INPLANT","JEFE DE OPERACIONES","COORDINADOR","FECHA DE LA INCIDENCIA","TIPO DE FALLA","RUTA","PARADA","TURNO","UBER / TAXI","MONTO","UNIDAD","OPERADOR","COBRO A OPERADOR","COMENTARIOS","TIENE IMAGEN","ESTATUS","FECHA ENTREGA A RH","FECHA PASE A ADMINISTRACION","FECHA DE PAGO","FECHA DE CAPTURA"];
+  const EXPORT_HEADERS = ["PLANTA","RP","INPLANT","JEFE DE OPERACIONES","COORDINADOR","FECHA DE LA INCIDENCIA","TIPO DE FALLA","RUTA","PARADA","TURNO","UBER / TAXI","MONTO","UNIDAD","OPERADOR","COBRO A","COMENTARIOS","TIENE IMAGEN","ESTATUS","FECHA ENTREGA A RH","FECHA PASE A ADMINISTRACION","FECHA DE PAGO","FECHA DE CAPTURA"];
 
   const DELETE_PASSWORD = "LIPU2026";
 
   let records = [];
   let editingId = null;
   let pendingModalAction = null; // { type: "delete" | "edit", id }
+  let selectedIdsByKind = { taxis:new Set(), paid:new Set() };
+  const KIND_TO_SUFFIX = { paid:"2", taxis:"Taxis" };
   let pendingStatusChange = null;
   let unsubscribeSnapshot = null;
 
@@ -730,16 +760,17 @@
   const $ = (id) => document.getElementById(id);
   const form = $("recordForm");
   const cardsEl = $("cards");
-  const tableHeadRow = $("tableHeadRow");
-  const tableBody = $("tableBody");
-  const emptyState = $("emptyState");
-  const tableBadge = $("tableBadge");
-  const footerCount = $("footerCount");
   const tableHeadRow2 = $("tableHeadRow2");
   const tableBody2 = $("tableBody2");
   const emptyState2 = $("emptyState2");
   const tableBadge2 = $("tableBadge2");
   const footerCount2 = $("footerCount2");
+
+  // Listado de incidencias activas (todo lo que no está pagado)
+  const COBRO_TABLE_DEFS = {
+    Taxis: { source: () => getTaxisRecords(), tableKind:"taxis", emptyMsg: "Aún no hay incidencias pendientes." }
+  };
+
   const syncDot = $("syncDot");
   const syncText = $("syncText");
 
@@ -776,28 +807,45 @@
   function buildHeaderRow(rowEl, opts){
     opts = opts || {};
     const tableKind = opts.tableKind || "active";
+    if(!opts.readOnly){
+      const thCheck = document.createElement("th");
+      const selAllCb = document.createElement("input");
+      selAllCb.type = "checkbox";
+      selAllCb.className = "select-all-cb";
+      selAllCb.setAttribute("data-table-kind", tableKind);
+      selAllCb.title = "Seleccionar todos los visibles";
+      thCheck.appendChild(selAllCb);
+      rowEl.appendChild(thCheck);
+    }
     if(opts.showAging){
       const thAging = document.createElement("th");
       thAging.textContent = "Días sin pago";
-      addFilterBtn(thAging, "__aging", tableKind);
+      if(!opts.noFilterBtns) addFilterBtn(thAging, "__aging", tableKind);
       rowEl.appendChild(thAging);
     }
-    const thStatus = document.createElement("th");
-    thStatus.textContent = "";
-    rowEl.appendChild(thStatus);
+    if(!opts.readOnly){
+      const thStatus = document.createElement("th");
+      thStatus.textContent = "";
+      rowEl.appendChild(thStatus);
+    }
     COLUMNS.forEach(col=>{
       if(opts.excludeKeys && opts.excludeKeys.includes(col.key)) return;
       const th = document.createElement("th");
       th.textContent = col.label;
-      addFilterBtn(th, col.key, tableKind);
+      if(!opts.noFilterBtns) addFilterBtn(th, col.key, tableKind);
       rowEl.appendChild(th);
     });
-    const thActions = document.createElement("th");
-    thActions.textContent = "";
-    rowEl.appendChild(thActions);
+    if(!opts.readOnly){
+      const thActions = document.createElement("th");
+      thActions.textContent = "";
+      rowEl.appendChild(thActions);
+    }
   }
-  buildHeaderRow(tableHeadRow, {showAging:true, tableKind:"active"});
   buildHeaderRow(tableHeadRow2, {excludeKeys:["__timeline"], tableKind:"paid"});
+  Object.keys(COBRO_TABLE_DEFS).forEach(suffix=>{
+    const def = COBRO_TABLE_DEFS[suffix];
+    buildHeaderRow($("tableHeadRow"+suffix), {excludeKeys:["__timeline"], showAging:true, tableKind:def.tableKind});
+  });
 
   // ---------- Toast ----------
   let toastTimer;
@@ -908,12 +956,21 @@
     return monday.getFullYear() + "-" + String(monday.getMonth()+1).padStart(2,"0") + "-" + String(monday.getDate()).padStart(2,"0");
   }
 
+  function getISOWeekNumber(date){
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  }
+
   function weekKeyToLabel(key){
     const monday = new Date(key + "T00:00:00");
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate()+6);
     const fmt = (d)=> d.toLocaleDateString("es-MX",{day:"2-digit", month:"short"});
-    return `${fmt(monday)} – ${fmt(sunday)}`;
+    const weekNum = getISOWeekNumber(monday);
+    return `Semana ${weekNum}: ${fmt(monday)} – ${fmt(sunday)}`;
   }
 
   function daysSince(dateStr){
@@ -1023,6 +1080,17 @@
     recordsForTotals.forEach(r=>{ if(tipoCounts.hasOwnProperty(r.tipoFalla)) tipoCounts[r.tipoFalla]++; });
     const maxTipo = Math.max(1, ...Object.values(tipoCounts));
 
+    // Cobro a: Operador / Cliente / Unidad de negocio (respeta filtros de mes/semana)
+    const UNIDAD_NEGOCIO_KEYS = ["Mantenimiento","Logística","Relaciones Publicas","Capital Humano"];
+    const cobroACounts = {operador:0, cliente:0, unidadNegocio:0};
+    const cobroAMontos = {operador:0, cliente:0, unidadNegocio:0};
+    recordsForTotals.forEach(r=>{
+      const monto = Number(r.monto)||0;
+      if(r.cobroOperador === "Operador" || r.cobroOperador === "Sí"){ cobroACounts.operador++; cobroAMontos.operador += monto; }
+      else if(r.cobroOperador === "Cliente"){ cobroACounts.cliente++; cobroAMontos.cliente += monto; }
+      else if(UNIDAD_NEGOCIO_KEYS.includes(r.cobroOperador)){ cobroACounts.unidadNegocio++; cobroAMontos.unidadNegocio += monto; }
+    });
+
     const plantaCounts = {};
     recordsForTotals.forEach(r=>{
       if(!r.planta) return;
@@ -1064,6 +1132,24 @@
           <span class="status-chip" style="background:var(--teal-bg);color:#0B6E62;"><span class="dot" style="background:var(--teal);"></span>En tiempo (0-3d) · ${agingCounts.ontime}</span>
           <span class="status-chip" style="background:var(--amber-bg);color:#92660A;"><span class="dot" style="background:var(--amber);"></span>En retraso (4-5d) · ${agingCounts.late}</span>
           <span class="status-chip" style="background:var(--red-bg);color:var(--red);"><span class="dot" style="background:var(--red);"></span>Crítico (6d+) · ${agingCounts.critical}</span>
+        </div>
+      </div>
+      <div class="card breakdown-card">
+        <div class="label">Cobro a</div>
+        <div class="scroll-list">
+          ${[
+            {label:"Operador", count:cobroACounts.operador, monto:cobroAMontos.operador, color:"var(--rose)"},
+            {label:"Cliente", count:cobroACounts.cliente, monto:cobroAMontos.cliente, color:"var(--indigo)"},
+            {label:"Unidad de negocio", count:cobroACounts.unidadNegocio, monto:cobroAMontos.unidadNegocio, color:"var(--violet)"}
+          ].map(item=>{
+            const maxCobroA = Math.max(1, cobroACounts.operador, cobroACounts.cliente, cobroACounts.unidadNegocio);
+            const pct = Math.round((item.count/maxCobroA)*100);
+            return `<div class="bar-row">
+              <span class="bar-label">${item.label}</span>
+              <span class="bar-track"><span class="bar-fill" style="width:${pct}%;background:${item.color};"></span></span>
+              <span class="bar-count" style="width:auto;min-width:96px;">${item.count} · ${formatMoney(item.monto)}</span>
+            </div>`;
+          }).join("")}
         </div>
       </div>
       <div class="card breakdown-card">
@@ -1117,20 +1203,26 @@
   }
 
   // ---------- Render: table ----------
-  function getActiveRecords(){
-    return records.filter(r=> r.estatus !== "Pagado");
-  }
   function getPaidRecords(){
     return records.filter(r=> r.estatus === "Pagado");
   }
+  function getTaxisRecords(){ // Registro de Incidencias: todo lo que no esté pagado
+    return records.filter(r=> r.estatus !== "Pagado");
+  }
 
   // ---------- Filtro por columna (encabezados) ----------
-  let columnFiltersActive = {}; // { key: Set<string> }
-  let columnFiltersPaid = {};
+  let columnFiltersByKind = {}; // { tableKind: { key: Set<string> } }
   let openFilterCol = null; // { tableKind, key }
 
   function getFilterState(tableKind){
-    return tableKind === "paid" ? columnFiltersPaid : columnFiltersActive;
+    if(!columnFiltersByKind[tableKind]) columnFiltersByKind[tableKind] = {};
+    return columnFiltersByKind[tableKind];
+  }
+
+  function getSourceForKind(tableKind){
+    if(tableKind === "paid") return getPaidRecords();
+    if(tableKind === "taxis") return getTaxisRecords();
+    return records;
   }
 
   function getDisplayValue(r, key){
@@ -1151,7 +1243,7 @@
   function getUniqueValuesForColumn(tableKind, key){
     if(key === "__aging") return ["En tiempo","En retraso","Crítico"];
     if(key === "imagen") return ["Sí","No"];
-    const source = tableKind === "paid" ? getPaidRecords() : getActiveRecords();
+    const source = getSourceForKind(tableKind);
     const set = new Set();
     source.forEach(r=>{
       const v = getDisplayValue(r, key);
@@ -1191,7 +1283,7 @@
   }
 
   function buildTimelineHtml(r){
-    const stages = r.cobroOperador === "Sí"
+    const stages = (r.cobroOperador === "Operador" || r.cobroOperador === "Sí")
       ? [
           {key:"Operaciones", label:"Operaciones", date:r.fechaIncidencia||null},
           {key:"RH", label:"RH", date:r.fechaRH||null},
@@ -1223,9 +1315,106 @@
     return `<td><span class="status-tag" style="background:${tier.bg};color:${tier.fg};"><span class="dot" style="background:${tier.dot};"></span>${days}d · ${tier.label}</span></td>`;
   }
 
+  function downloadDataUrlFile(dataUrl, filename){
+    const a = document.createElement("a");
+    a.href = dataUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  const EMAIL_TABLE_HEADERS = ["Cliente","Fecha de incidencia","Ruta","Turno","Parada","Monto","Comentarios"];
+
+  function recordToEmailCells(r){
+    return [
+      r.planta || "—",
+      formatDate(r.fechaIncidencia),
+      r.ruta || "—",
+      r.turno || "—",
+      r.parada || "—",
+      formatMoney(r.monto),
+      (r.comentarios || "—").replace(/[\t\n\r]+/g, " ")
+    ];
+  }
+
+  function buildEmailTableHtml(recordsArray){
+    const thStyle = "border:1px solid #94a3b8;padding:6px 10px;background:#1B2430;color:#ffffff;font-family:Calibri,Arial,sans-serif;font-size:13px;text-align:left;";
+    const tdStyle = "border:1px solid #94a3b8;padding:6px 10px;font-family:Calibri,Arial,sans-serif;font-size:13px;";
+    const theadRow = "<tr>" + EMAIL_TABLE_HEADERS.map(h=> `<th style="${thStyle}">${escapeHtml(h)}</th>`).join("") + "</tr>";
+    const bodyRows = recordsArray.map(r=>{
+      const cells = recordToEmailCells(r);
+      return "<tr>" + cells.map(c=> `<td style="${tdStyle}">${escapeHtml(String(c))}</td>`).join("") + "</tr>";
+    }).join("");
+    return `<table style="border-collapse:collapse;border:1px solid #94a3b8;">${theadRow}${bodyRows}</table>`;
+  }
+
+  function buildEmailTablePlainText(recordsArray){
+    const rows = [EMAIL_TABLE_HEADERS].concat(recordsArray.map(recordToEmailCells));
+    return rows.map(row=> row.join("\t")).join("\n");
+  }
+
+  async function copyEmailTableToClipboard(recordsArray){
+    const html = buildEmailTableHtml(recordsArray);
+    const text = buildEmailTablePlainText(recordsArray);
+    try{
+      if(window.ClipboardItem && navigator.clipboard && navigator.clipboard.write){
+        const htmlBlob = new Blob([html], {type:"text/html"});
+        const textBlob = new Blob([text], {type:"text/plain"});
+        await navigator.clipboard.write([ new ClipboardItem({ "text/html": htmlBlob, "text/plain": textBlob }) ]);
+        return true;
+      }
+    }catch(err){
+      console.error(err);
+    }
+    try{
+      await navigator.clipboard.writeText(text);
+    }catch(err2){ /* ignore */ }
+    return false;
+  }
+
+  async function sendEmailForRecords(recordsArray){
+    if(!recordsArray || recordsArray.length === 0) return;
+
+    const subject = recordsArray.length === 1
+      ? `Seguimiento para cobro de taxi — ${recordsArray[0].planta || "LIPU"}`
+      : `Seguimiento para cobro de taxis (${recordsArray.length} registros)`;
+
+    const htmlCopied = await copyEmailTableToClipboard(recordsArray);
+
+    const intro = "Estimado equipo de Operaciones,\n\nSe les comparte la información para el debido seguimiento para cobro de taxis.";
+    const pasteNote = htmlCopied
+      ? "\n\nLa tabla ya se copió a tu portapapeles — pégala aquí con Ctrl+V (o Cmd+V en Mac) para que se vea como tabla:\n\n[PEGAR TABLA AQUÍ]"
+      : "\n\nNo se pudo copiar la tabla automáticamente a tu portapapeles — vuelve a intentarlo desde el dashboard.";
+    const closing = "\n\nSaludos.";
+    const body = intro + pasteNote + closing;
+
+    const openMail = ()=>{
+      window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    };
+
+    const imagesToDownload = recordsArray.filter(r=> r.imagen);
+    if(imagesToDownload.length > 0){
+      imagesToDownload.forEach((r, i)=>{
+        setTimeout(()=>{
+          const safeName = (r.planta || "registro").replace(/[^a-z0-9]/gi, "_");
+          downloadDataUrlFile(r.imagen, `Imagen_${safeName}_${i+1}.jpg`);
+        }, i*350);
+      });
+      showToast(htmlCopied
+        ? `Tabla copiada. Descargando ${imagesToDownload.length} imagen(es) — pega la tabla (Ctrl+V) y adjunta las imágenes manualmente.`
+        : `Descargando ${imagesToDownload.length} imagen(es) — adjúntalas manualmente.`);
+      setTimeout(openMail, imagesToDownload.length*350 + 500);
+    } else {
+      showToast(htmlCopied ? "Tabla copiada — pégala con Ctrl+V dentro del correo." : "No se pudo copiar la tabla automáticamente.", htmlCopied ? undefined : "error");
+      openMail();
+    }
+  }
+
   function buildRowHtml(r, opts){
     opts = opts || {};
     const excludeKeys = opts.excludeKeys;
+    const tableKind = opts.tableKind || "active";
     const cells = COLUMNS.filter(col=> !(excludeKeys && excludeKeys.includes(col.key))).map(col=>{
       if(col.type === "timeline") return `<td>${buildTimelineHtml(r)}</td>`;
       const val = r[col.key];
@@ -1242,9 +1431,18 @@
       }
       return `<td>${val ? escapeHtml(String(val)) : "—"}</td>`;
     }).join("");
+    const agingCell = opts.showAging ? buildAgingCell(r) : "";
+
+    if(opts.readOnly){
+      return `<tr data-id="${r.id}">${agingCell}${cells}</tr>`;
+    }
+
+    const isChecked = selectedIdsByKind[tableKind] && selectedIdsByKind[tableKind].has(r.id);
+    const checkCell = `<td><input type="checkbox" class="row-select-cb" data-id="${r.id}" data-table-kind="${tableKind}" ${isChecked ? "checked" : ""}></td>`;
+
     let statusBtn = "";
     if(r.estatus === "Operaciones"){
-      if(r.cobroOperador === "Sí"){
+      if(r.cobroOperador === "Operador" || r.cobroOperador === "Sí"){
         statusBtn = `<button class="status-action-btn rh" data-action="to-rh" data-id="${r.id}" title="Pasar a RH">→ RH</button>`;
       } else {
         statusBtn = `<button class="status-action-btn admin" data-action="to-admin" data-id="${r.id}" title="Pasar a Administración">→ Admin.</button>`;
@@ -1253,14 +1451,19 @@
       statusBtn = `<button class="status-action-btn admin" data-action="to-admin" data-id="${r.id}" title="Pasar a Administración">→ Admin.</button>`;
     } else if(r.estatus === "Administracion"){
       statusBtn = `<button class="status-action-btn pagado" data-action="to-pagado" data-id="${r.id}" title="Marcar como pagado">→ Pagado</button>`;
+    } else if(r.estatus === "Pagado"){
+      statusBtn = `<button class="status-action-btn revert" data-action="to-incidencias" data-id="${r.id}" title="Regresar a Registro de Incidencias">↩ Incidencias</button>`;
     }
-    const agingCell = opts.showAging ? buildAgingCell(r) : "";
     return `<tr data-id="${r.id}">
+      ${checkCell}
       ${agingCell}
       <td><div class="row-actions">${statusBtn}</div></td>
       ${cells}
       <td>
         <div class="row-actions">
+          <button class="icon-btn mail" data-action="send-mail" data-id="${r.id}" title="Enviar correo de seguimiento (Outlook)">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22 6 12 13 2 6"/></svg>
+          </button>
           <button class="icon-btn" data-action="edit" data-id="${r.id}" title="Editar">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           </button>
@@ -1270,25 +1473,6 @@
         </div>
       </td>
     </tr>`;
-  }
-
-  function renderTable(){
-    const activeRecords = getActiveRecords();
-    const filtered = filterRecords(activeRecords, {searchId:"searchInput", tableKind:"active"});
-    tableBadge.textContent = activeRecords.length;
-    footerCount.textContent = activeRecords.length + " registro" + (activeRecords.length===1?"":"s") +
-      (filtered.length !== activeRecords.length ? " · " + filtered.length + " mostrado(s)" : "");
-
-    if(filtered.length === 0){
-      tableBody.innerHTML = "";
-      emptyState.style.display = "block";
-      emptyState.querySelector("p").innerHTML = activeRecords.length === 0
-        ? "<strong>No hay incidencias activas.</strong><br>Usa el formulario para capturar una nueva."
-        : "<strong>Sin resultados.</strong><br>Ajusta la búsqueda o los filtros.";
-      return;
-    }
-    emptyState.style.display = "none";
-    tableBody.innerHTML = filtered.map(r=> buildRowHtml(r, {showAging:true})).join("");
   }
 
   function renderPaidTable(){
@@ -1310,6 +1494,31 @@
     tableBody2.innerHTML = filtered.map(r=> buildRowHtml(r, {excludeKeys:["__timeline"]})).join("");
   }
 
+  function renderCobroTable(suffix){
+    const def = COBRO_TABLE_DEFS[suffix];
+    const source = def.source();
+    const filtered = filterRecords(source, {searchId:"searchInput"+suffix, tableKind:def.tableKind});
+    const badgeEl = $("tableBadge"+suffix);
+    const footerEl = $("footerCount"+suffix);
+    const bodyEl = $("tableBody"+suffix);
+    const emptyEl = $("emptyState"+suffix);
+
+    badgeEl.textContent = source.length;
+    footerEl.textContent = source.length + " registro" + (source.length===1?"":"s") +
+      (filtered.length !== source.length ? " · " + filtered.length + " mostrado(s)" : "");
+
+    if(filtered.length === 0){
+      bodyEl.innerHTML = "";
+      emptyEl.style.display = "block";
+      emptyEl.querySelector("p").innerHTML = source.length === 0
+        ? `<strong>${def.emptyMsg}</strong>`
+        : "<strong>Sin resultados.</strong><br>Ajusta la búsqueda o los filtros.";
+      return;
+    }
+    emptyEl.style.display = "none";
+    bodyEl.innerHTML = filtered.map(r=> buildRowHtml(r, {excludeKeys:["__timeline"], showAging:true})).join("");
+  }
+
   function escapeHtml(str){
     const d = document.createElement("div");
     d.textContent = str;
@@ -1318,8 +1527,8 @@
 
   function renderAll(){
     renderCards();
-    renderTable();
     renderPaidTable();
+    Object.keys(COBRO_TABLE_DEFS).forEach(renderCobroTable);
   }
 
   // ---------- Form ----------
@@ -1491,11 +1700,17 @@
       return;
     }
 
+    if(action === "send-mail"){
+      const rec = records.find(r=> r.id === id);
+      if(!rec) return;
+      sendEmailForRecords([rec]);
+      return;
+    }
+
     if(action === "edit"){
       const rec = records.find(r=> r.id === id);
       if(!rec) return;
-      const isPaidTable = e.currentTarget === tableBody2;
-      if(isPaidTable){
+      if(rec.estatus === "Pagado"){
         pendingModalAction = {type:"edit", id};
         $("modalTitle").textContent = "¿Editar este registro pagado?";
         $("modalText").textContent = "Este registro ya está pagado. Ingresa la contraseña para poder editarlo.";
@@ -1509,21 +1724,32 @@
       openEditForm(rec);
     }
 
-    if(action === "to-rh" || action === "to-admin" || action === "to-pagado"){
+    if(action === "to-rh" || action === "to-admin" || action === "to-pagado" || action === "to-incidencias"){
       const rec = records.find(r=> r.id === id);
       if(!rec) return;
-      const targetStatus = action === "to-rh" ? "RH" : (action === "to-admin" ? "Administracion" : "Pagado");
+      const targetStatus =
+        action === "to-rh" ? "RH" :
+        action === "to-admin" ? "Administracion" :
+        action === "to-pagado" ? "Pagado" : "Operaciones";
       pendingStatusChange = {id, targetStatus};
       $("statusModalTitle").textContent =
         targetStatus === "RH" ? "¿Marcar como entregado a RH?" :
         targetStatus === "Administracion" ? "¿Marcar incidencia como resuelta y pasar a Administración?" :
-        "¿Marcar registro como pagado?";
-      $("statusModalText").textContent = `El estatus de este registro cambiará a "${targetStatus}".`;
-      $("statusModalDateLabel").textContent =
-        targetStatus === "RH" ? "Fecha de entrega a RH" :
-        targetStatus === "Administracion" ? "Fecha en que pasó a Administración" :
-        "Fecha de pago";
-      $("statusModalDate").value = new Date().toISOString().slice(0,10);
+        targetStatus === "Pagado" ? "¿Marcar registro como pagado?" :
+        "¿Regresar este registro a Registro de Incidencias?";
+      $("statusModalText").textContent = targetStatus === "Operaciones"
+        ? "El registro dejará de estar marcado como pagado y volverá a aparecer en Registro de Incidencias."
+        : `El estatus de este registro cambiará a "${targetStatus}".`;
+      if(targetStatus === "Operaciones"){
+        $("statusModalDateField").style.display = "none";
+      } else {
+        $("statusModalDateField").style.display = "block";
+        $("statusModalDateLabel").textContent =
+          targetStatus === "RH" ? "Fecha de entrega a RH" :
+          targetStatus === "Administracion" ? "Fecha en que pasó a Administración" :
+          "Fecha de pago";
+        $("statusModalDate").value = new Date().toISOString().slice(0,10);
+      }
       $("statusModalOverlay").classList.add("show");
     }
 
@@ -1538,8 +1764,10 @@
       setTimeout(()=> $("modalPasswordInput").focus(), 50);
     }
   }
-  tableBody.addEventListener("click", handleRowActionClick);
   tableBody2.addEventListener("click", handleRowActionClick);
+  Object.keys(COBRO_TABLE_DEFS).forEach(suffix=>{
+    $("tableBody"+suffix).addEventListener("click", handleRowActionClick);
+  });
 
   $("lightboxCloseBtn").addEventListener("click", ()=> $("imageLightbox").classList.remove("show"));
   $("imageLightbox").addEventListener("click", (e)=>{
@@ -1598,12 +1826,15 @@
   $("statusModalConfirmBtn").addEventListener("click", async ()=>{
     if(!pendingStatusChange) return;
     if(!firebaseReady){ showToast("Firebase no está configurado.", "error"); return; }
-    const dateVal = $("statusModalDate").value;
-    if(!dateVal){
-      showToast("Selecciona una fecha", "error");
-      return;
-    }
     const { id, targetStatus } = pendingStatusChange;
+    let dateVal = "";
+    if(targetStatus !== "Operaciones"){
+      dateVal = $("statusModalDate").value;
+      if(!dateVal){
+        showToast("Selecciona una fecha", "error");
+        return;
+      }
+    }
     $("statusModalOverlay").classList.remove("show");
     pendingStatusChange = null;
     setSyncState("loading");
@@ -1625,8 +1856,10 @@
   });
 
   // ---------- Filters ----------
-  $("searchInput").addEventListener("input", renderTable);
   $("searchInput2").addEventListener("input", renderPaidTable);
+  Object.keys(COBRO_TABLE_DEFS).forEach(suffix=>{
+    $("searchInput"+suffix).addEventListener("input", ()=> renderCobroTable(suffix));
+  });
 
   // ---------- Column header filter popover ----------
   const colFilterPopover = $("colFilterPopover");
@@ -1698,6 +1931,73 @@
   window.addEventListener("scroll", closeColFilterPopover, true);
   window.addEventListener("resize", closeColFilterPopover);
 
+  // ---------- Selección múltiple para envío de correo ----------
+  function updateSelectionBar(kind){
+    const suffix = KIND_TO_SUFFIX[kind];
+    if(!suffix) return;
+    const bar = $("selectionBar"+suffix);
+    if(!bar) return;
+    const count = selectedIdsByKind[kind] ? selectedIdsByKind[kind].size : 0;
+    if(count === 0){
+      bar.style.display = "none";
+    } else {
+      bar.style.display = "flex";
+      bar.querySelector(".selection-count").textContent = `${count} seleccionado${count>1?"s":""}`;
+    }
+  }
+
+  function rerenderKind(kind){
+    if(kind === "paid"){ renderPaidTable(); return; }
+    const suffix = Object.keys(COBRO_TABLE_DEFS).find(s=> COBRO_TABLE_DEFS[s].tableKind === kind);
+    if(suffix) renderCobroTable(suffix);
+  }
+
+  document.addEventListener("change", (e)=>{
+    if(e.target.classList.contains("row-select-cb")){
+      const kind = e.target.getAttribute("data-table-kind");
+      const id = e.target.getAttribute("data-id");
+      if(!selectedIdsByKind[kind]) selectedIdsByKind[kind] = new Set();
+      if(e.target.checked) selectedIdsByKind[kind].add(id);
+      else selectedIdsByKind[kind].delete(id);
+      updateSelectionBar(kind);
+      return;
+    }
+    if(e.target.classList.contains("select-all-cb")){
+      const kind = e.target.getAttribute("data-table-kind");
+      const suffix = KIND_TO_SUFFIX[kind];
+      const body = $("tableBody"+suffix);
+      if(!body) return;
+      const checkboxes = body.querySelectorAll(".row-select-cb");
+      if(!selectedIdsByKind[kind]) selectedIdsByKind[kind] = new Set();
+      checkboxes.forEach(cb=>{
+        cb.checked = e.target.checked;
+        const id = cb.getAttribute("data-id");
+        if(e.target.checked) selectedIdsByKind[kind].add(id);
+        else selectedIdsByKind[kind].delete(id);
+      });
+      updateSelectionBar(kind);
+    }
+  });
+
+  document.addEventListener("click", (e)=>{
+    const sendBtn = e.target.closest("[data-send-kind]");
+    if(sendBtn){
+      const kind = sendBtn.getAttribute("data-send-kind");
+      const ids = selectedIdsByKind[kind];
+      if(!ids || ids.size === 0){ showToast("Selecciona al menos un registro", "error"); return; }
+      const selectedRecords = records.filter(r=> ids.has(r.id));
+      sendEmailForRecords(selectedRecords);
+      return;
+    }
+    const clearBtn = e.target.closest("[data-clear-kind]");
+    if(clearBtn){
+      const kind = clearBtn.getAttribute("data-clear-kind");
+      selectedIdsByKind[kind] = new Set();
+      updateSelectionBar(kind);
+      rerenderKind(kind);
+    }
+  });
+
   colFilterSearch.addEventListener("input", renderColFilterList);
 
   colFilterList.addEventListener("change", (e)=>{
@@ -1718,7 +2018,11 @@
     }
     renderColFilterList();
     updateThFilterActiveState();
-    if(tableKind === "paid") renderPaidTable(); else renderTable();
+    if(tableKind === "paid") renderPaidTable();
+    else{
+      const suffix = Object.keys(COBRO_TABLE_DEFS).find(s=> COBRO_TABLE_DEFS[s].tableKind === tableKind);
+      if(suffix) renderCobroTable(suffix);
+    }
   });
 
   // ---------- Month filter (Total de incidencias / Monto acumulado) ----------
@@ -1777,14 +2081,6 @@
     showToast("Excel descargado");
   }
 
-  $("exportBtn").addEventListener("click", function(){
-    if(records.length === 0){
-      showToast("Aún no hay registros para exportar", "error");
-      return;
-    }
-    downloadExcel(buildExportRows(records), "TAXIS", "Reembolsos_LIPU");
-  });
-
   $("exportBtn2").addEventListener("click", function(){
     const paidRecords = getPaidRecords();
     if(paidRecords.length === 0){
@@ -1792,6 +2088,21 @@
       return;
     }
     downloadExcel(buildExportRows(paidRecords), "PAGADOS", "Reembolsos_LIPU_Pagados");
+  });
+
+  const COBRO_EXPORT_INFO = {
+    Taxis: { sheet: "REGISTRO_INCIDENCIAS", prefix: "Reembolsos_LIPU_Registro_Incidencias", emptyMsg: "Aún no hay incidencias para exportar" }
+  };
+  Object.keys(COBRO_TABLE_DEFS).forEach(suffix=>{
+    $("exportBtn"+suffix).addEventListener("click", function(){
+      const source = COBRO_TABLE_DEFS[suffix].source();
+      const info = COBRO_EXPORT_INFO[suffix];
+      if(source.length === 0){
+        showToast(info.emptyMsg, "error");
+        return;
+      }
+      downloadExcel(buildExportRows(source), info.sheet, info.prefix);
+    });
   });
 
   // ---------- Init ----------
